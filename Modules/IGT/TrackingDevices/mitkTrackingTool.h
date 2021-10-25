@@ -49,8 +49,11 @@ namespace mitk
     void PrintSelf(std::ostream& os, itk::Indent indent) const override;
 
     virtual const char* GetToolName() const; ///< every tool has a name thatgit  can be used to identify it.
-    virtual void SetToolName(const std::string _arg); ///< Sets the name of the tool
-    virtual void SetToolName(const char* _arg); ///< Sets the name of the tool
+    // HRS_NAVIGATION_MODIFICATION starts
+    //virtual void SetToolName(const std::string _arg); ///< Sets the name of the tool
+    virtual void SetToolName(const std::string& _arg); ///< Sets the name of the tool
+    // HRS_NAVIGATION_MODIFICATION ends
+    virtual void SetToolName(const char *_arg);       ///< Sets the name of the tool
 
     Point3D GetToolTipPosition() const; ///< returns the tool tip in tool coordinates, which where set by SetToolTip
     Quaternion GetToolAxisOrientation() const; ///< returns the transformation of the tool axis with respect to the MITK-IGT main tool axis (0,0,-1)

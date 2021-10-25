@@ -419,7 +419,11 @@ namespace mitk
 
   void SliceNavigationController::SelectSliceByPoint(const Point3D &point)
   {
-    if (m_CreatedWorldGeometry.IsNull())
+    // HRS_NAVIGATION_MODIFICATION starts
+    //if (m_CreatedWorldGeometry.IsNull())
+    // As we don't want to move slice even when we locked it
+    if (m_CreatedWorldGeometry.IsNull() || m_SliceLocked)
+    // HRS_NAVIGATION_MODIFICATION ends
     {
       return;
     }

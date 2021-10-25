@@ -59,6 +59,9 @@ namespace mitk
     * The files have to be placed in the Resources/Interaction folder of their respective module.
     **/
     bool LoadBehavior(const std::string &fileName, const us::Module *module);
+	// HRS_NAVIGATION_MODIFICATION starts
+    bool LoadBehavior(const std::string &fileName, const std::string &moduleName);
+	// HRS_NAVIGATION_MODIFICATION ends
 
     /**
     * brief To enable StateMachine to access states

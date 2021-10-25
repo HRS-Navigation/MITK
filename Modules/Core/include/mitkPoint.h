@@ -95,6 +95,12 @@ namespace mitk
   typedef Point<ScalarType, 3> Point3D;
   typedef Point<ScalarType, 4> Point4D;
 
+  // HRS_NAVIGATION_MODIFICATION starts
+  typedef Point<float, 3> Point3F;
+  typedef itk::Vector<ScalarType, 3> IVector3D;
+  // HRS_NAVIGATION_MODIFICATION ends
+
+
   typedef Point<int, 2> Point2I;
   typedef Point<int, 3> Point3I;
   typedef Point<int, 4> Point4I;

@@ -323,6 +323,16 @@ void mitk::PointSet::InsertPoint(PointIdentifier id, PointType point, int t)
   this->InsertPoint(id, point, mitk::PTUNDEFINED, t);
 }
 
+// HRS_NAVIGATION_MODIFICATION starts
+void mitk::PointSet::InsertPoint(PointIdentifier id, PointTypeF point, int t)
+{
+  PointType pointD;
+  pointD.CastFrom(point);
+  return InsertPoint(id, pointD, t);
+}
+// HRS_NAVIGATION_MODIFICATION ends
+
+
 void mitk::PointSet::InsertPoint(PointIdentifier id, PointType point, PointSpecificationType spec, int t)
 {
   if ((unsigned int)t < m_PointSetSeries.size())

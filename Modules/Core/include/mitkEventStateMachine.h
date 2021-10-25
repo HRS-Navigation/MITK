@@ -125,6 +125,10 @@ namespace mitk
       * The files have to be placed in the Resources/Interaction folder of their respective module.
       **/
     bool LoadStateMachine(const std::string &filename, const us::Module *module = nullptr);
+	// HRS_NAVIGATION_MODIFICATION starts
+    bool LoadStateMachine(const std::string &filename, const std::string &moduleName);
+	// HRS_NAVIGATION_MODIFICATION ends
+
     /**
      * Receives Event from Dispatcher.
      * Event is mapped using the EventConfig Object to a variant, then it is checked if the StateMachine is listening

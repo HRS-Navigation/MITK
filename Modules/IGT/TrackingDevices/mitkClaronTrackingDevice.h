@@ -112,6 +112,10 @@ namespace mitk
   /** @brief Gets the current calibration directory. */
     itkGetMacro(CalibrationDir,std::string);
 
+    // HRS_NAVIGATION_MODIFICATION starts
+    void SetTrackerlessNavEnabledTracker(mtHandle trackerHandle, bool enable);
+    // HRS_NAVIGATION_MODIFICATION ends
+
   protected:
     ClaronTrackingDevice();
     ~ClaronTrackingDevice() override;

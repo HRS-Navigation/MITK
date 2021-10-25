@@ -52,7 +52,7 @@ namespace mitk
      */
     virtual bool InternalAreEqual(const BaseData &left,
                                   const BaseData &right,
-                                  ScalarType eps = mitk::eps,
+                                  ScalarType epsa = mitk::eps,
                                   bool verbose = false) = 0;
 
     /**
@@ -70,10 +70,10 @@ namespace mitk
      *
      * \param left left BaseData instance of the comparison.
      * \param right right BaseData instance of the comparison.
-     * \param eps precision for float value comparisons.
+     * \param epsa precision for float value comparisons.
      * \param verbose when true, failing comparisons will print messages to logging/console.
      */
-    bool AreEqual(const BaseData *left, const BaseData *right, ScalarType eps = mitk::eps, bool verbose = false);
+    bool AreEqual(const BaseData *left, const BaseData *right, ScalarType epsa = mitk::eps, bool verbose = false);
 
     /**
      * \brief Register core type comparators that come with mitk::Equal() functions.
@@ -94,7 +94,7 @@ namespace mitk
   private:
     bool InternalAreEqual(const BaseData &left,
                                   const BaseData &right,
-                                  ScalarType eps = mitk::eps,
+                                  ScalarType epsa = mitk::eps,
                                   bool verbose = false) override
     {
       try
@@ -102,7 +102,7 @@ namespace mitk
         const T &leftT = dynamic_cast<const T &>(left);
         const T &rightT = dynamic_cast<const T &>(right);
 
-        return mitk::Equal(leftT, rightT, eps, verbose);
+        return mitk::Equal(leftT, rightT, epsa, verbose);
       }
       catch (const std::exception &e)
       {
@@ -129,7 +129,7 @@ namespace mitk
   private:
     bool InternalAreEqual(const BaseData &left,
                                   const BaseData &right,
-                                  ScalarType eps = mitk::eps,
+                                  ScalarType epsa = mitk::eps,
                                   bool verbose = false) override
     {
       try
@@ -140,7 +140,7 @@ namespace mitk
         T &leftTNonConst = const_cast<T &>(leftT);
         T &rightTNonConst = const_cast<T &>(rightT);
 
-        return mitk::Equal(leftTNonConst, rightTNonConst, eps, verbose);
+        return mitk::Equal(leftTNonConst, rightTNonConst, epsa, verbose);
       }
       catch (const std::exception &e)
       {

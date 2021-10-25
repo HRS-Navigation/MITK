@@ -57,6 +57,9 @@ namespace mitk
        * @return \c true if the resource was successfully loaded, \c false otherwise.
        */
       bool SetEventConfig(const std::string &filename, const us::Module *module = nullptr);
+	// HRS_NAVIGATION_MODIFICATION starts
+    bool SetEventConfig(const std::string &filename, const std::string &moduleName);
+	// HRS_NAVIGATION_MODIFICATION ends
 
     /**
      * @brief Loads a configuration from an EventConfig object.

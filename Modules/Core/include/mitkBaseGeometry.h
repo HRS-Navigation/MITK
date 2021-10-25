@@ -658,13 +658,13 @@ namespace mitk
   *
   * @param rightHandSide Compare this against leftHandSide.
   * @param leftHandSide Compare this against rightHandSide.
-  * @param eps Tolarence for comparison. You can use mitk::eps in most cases.
+  * @param epsa Tolarence for comparison. You can use mitk::eps in most cases.
   * @param verbose Flag indicating if the user wants detailed console output or not.
   * @return True, if all comparison are true. False in any other case.
   */
   MITKCORE_EXPORT bool Equal(const mitk::BaseGeometry &leftHandSide,
                              const mitk::BaseGeometry &rightHandSide,
-                             ScalarType eps = mitk::eps,
+                             ScalarType epsa = mitk::eps,
                              bool verbose = false);
 
   /**
@@ -674,16 +674,16 @@ namespace mitk
   *
   * The function compares the IndexToWorldTransform (elementwise).
   *
-  * The parameter eps is a tolarence value for all methods which are internally used for comparion.
+  * The parameter epsa is a tolarence value for all methods which are internally used for comparion.
   * @param rightHandSide Compare this against leftHandSide.
   * @param leftHandSide Compare this against rightHandSide.
-  * @param eps Tolarence for comparison. You can use mitk::eps in most cases.
+  * @param epsa Tolarence for comparison. You can use mitk::eps in most cases.
   * @param verbose Flag indicating if the user wants detailed console output or not.
   * @return True, if all comparison are true. False in any other case.
   */
   MITKCORE_EXPORT bool Equal(const mitk::BaseGeometry::TransformType &leftHandSide,
                              const mitk::BaseGeometry::TransformType &rightHandSide,
-                             ScalarType eps,
+                             ScalarType epsa,
                              bool verbose);
 
   /**
@@ -693,16 +693,16 @@ namespace mitk
   *
   * The function compares the bounds (elementwise).
   *
-  * The parameter eps is a tolarence value for all methods which are internally used for comparion.
+  * The parameter epsa is a tolarence value for all methods which are internally used for comparion.
   * @param rightHandSide Compare this against leftHandSide.
   * @param leftHandSide Compare this against rightHandSide.
-  * @param eps Tolarence for comparison. You can use mitk::eps in most cases.
+  * @param epsa Tolarence for comparison. You can use mitk::eps in most cases.
   * @param verbose Flag indicating if the user wants detailed console output or not.
   * @return True, if all comparison are true. False in any other case.
   */
   MITKCORE_EXPORT bool Equal(const mitk::BaseGeometry::BoundingBoxType &leftHandSide,
                              const mitk::BaseGeometry::BoundingBoxType &rightHandSide,
-                             ScalarType eps,
+                             ScalarType epsa,
                              bool verbose);
 
   /**
@@ -717,7 +717,7 @@ namespace mitk
   * The function checks the spacing, origin, axis vectors, extents, the matrix of the
   * IndexToWorldTransform (elementwise), the bounding (elementwise) and the ImageGeometry flag.
   *
-  * The parameter eps is a tolerance value for all methods which are internally used for comparison.
+  * The parameter epsa is a tolerance value for all methods which are internally used for comparison.
   * @param testGeo Geometry that should be checked if it is a sub geometry of referenceGeo.
   * @param referenceGeo Geometry that should contain testedGeometry as sub geometry.
   * @param coordinateEps Tolerance for comparison of all spatial aspects (spacing, origin and grid alignment).
@@ -741,13 +741,13 @@ namespace mitk
   *
   * @param testGeo Geometry that should be checked if it is a sub geometry of referenceGeo.
   * @param referenceGeo Geometry that should contain testedGeometry as sub geometry.
-  * @param eps Tolarence for comparison (both spatial and directional). You can use mitk::eps in most cases.
+  * @param epsa Tolarence for comparison (both spatial and directional). You can use mitk::eps in most cases.
   * @param verbose Flag indicating if the user wants detailed console output or not.
   * @return True, if all comparison are true. False otherwise.
   */
   MITKCORE_EXPORT bool IsSubGeometry(const mitk::BaseGeometry& testGeo,
     const mitk::BaseGeometry& referenceGeo,
-    ScalarType eps = mitk::eps,
+    ScalarType epsa = mitk::eps,
     bool verbose = false);
 
 } // namespace mitk

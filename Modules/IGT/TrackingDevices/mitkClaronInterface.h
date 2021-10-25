@@ -12,7 +12,10 @@ found in the LICENSE file.
 
 #ifndef MITKCLARONINTERFACE_H_HEADER_INCLUDED_
 #define MITKCLARONINTERFACE_H_HEADER_INCLUDED_
-#define MTC(func) {int r = func; if (r!=mtOK) printf("MTC error: %s\n",MTLastErrorString()); };
+
+// HRS_NAVIGATION_MODIFICATION starts
+
+#define MTC(func) {int r = func; if (r!=mtOK) MITK_ERROR << "MTC error:" << MTLastErrorString();};
 
 #include <vector>
 #include <string>
@@ -23,15 +26,19 @@ found in the LICENSE file.
 #include <itkObject.h>
 #include <itkObjectFactory.h>
 
+#include <set>
+#include <map>
+#include <utility>
+
 #ifdef _WIN64  //Defined for applications for Win64.
-typedef long mtHandle;
+typedef long long mtHandle;
 #else
 typedef int mtHandle;
 #endif
 
 namespace mitk
 {
-  typedef int claronToolHandle;
+  typedef mtHandle claronToolHandle;
 
   /** Documentation:
   *   \brief An object of this class represents the interface to the MicronTracker. The methods of this class
@@ -77,6 +84,11 @@ namespace mitk
     std::vector<double> GetTipPosition(claronToolHandle c);
 
     /**
+     * \Returns the Thermal hazard associated with the tool position calculation.
+     */
+    int GetToolThermalHazard();
+
+    /**
     * \return Returns the quarternions of the tooltip. If no tooltip is defined the Method returns the quarternions of the tool.
     */
     std::vector<double> GetTipQuaternions(claronToolHandle c);
@@ -95,7 +107,7 @@ namespace mitk
     * \return Returns the name of the tool. This name is given by the calibration file.
     * \param c The handle of the tool, which name should be given back.
     */
-    const char* GetName(claronToolHandle c);
+    std::string GetName(claronToolHandle c);
 
     /**
     * \brief Grabs a frame from the camera.
@@ -113,6 +125,10 @@ namespace mitk
     *            is used otherways.
     */
     bool IsMicronTrackerInstalled();
+
+  	bool IsLastTrackerIdentifiedInRefSpace();
+    bool IsLastTrackerReferenceNotSet();
+    void SetTrackerlessNavEnabledTracker(mtHandle trackerHandle, bool enable);
 
   protected:
     /**
@@ -133,13 +149,29 @@ namespace mitk
     /** \brief Variable which holds a directory with some tool files in it. All this tools are trackable when the path is given to the MTC library.*/
     char markerDir[512];
 
-    //Some handles to communicate with the MTC library.
+	// Set the Thermal Hazard in tool tip calculation
+    void mitk::ClaronInterface::SetToolThermalHazard(int thermal_hazard);
+
+    // Some handles to communicate with the MTC library.
     mtHandle IdentifiedMarkers;
     mtHandle PoseXf;
     mtHandle CurrCamera;
     mtHandle IdentifyingCamera;
+    int ToolThermalHazard;
+    bool m_LastTrackerIdentifiedInRefSpace;
+    bool m_ReferenceNotSet;
+
+    std::set<mtHandle> m_HandleForTrackerless;
+    std::map<mtHandle, std::pair<std::vector<double>, std::vector<double>>> m_TrackerlessHandleLastValidData;
     //------------------------------------------------
 
+	void rotateYAxisNinetyDegree(double quaternionWithFirstTheta[4], double *outQuaternionWithFirstTheta);
+
+  private:
+    std::string m_ClaronToolNameCache;
   };
 }//mitk
+
+
+// HRS_NAVIGATION_MODIFICATION ends
 #endif

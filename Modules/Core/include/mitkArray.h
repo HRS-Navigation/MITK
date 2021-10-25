@@ -126,15 +126,15 @@ namespace mitk
    */
   template <typename TArrayType1, typename TArrayType2>
   inline bool EqualArray(
-    TArrayType1 &arrayType1, TArrayType2 &arrayType2, int size, ScalarType eps = mitk::eps, bool verbose = false)
+    TArrayType1 &arrayType1, TArrayType2 &arrayType2, int size, ScalarType epsa = mitk::eps, bool verbose = false)
   {
     bool isEqual = true;
     for (int var = 0; var < size; ++var)
     {
-      isEqual = isEqual && Equal(arrayType1[var], arrayType2[var], eps);
+      isEqual = isEqual && Equal(arrayType1[var], arrayType2[var], epsa);
     }
 
-    ConditionalOutputOfDifference(arrayType1, arrayType2, eps, verbose, isEqual);
+    ConditionalOutputOfDifference(arrayType1, arrayType2, epsa, verbose, isEqual);
 
     return isEqual;
   }

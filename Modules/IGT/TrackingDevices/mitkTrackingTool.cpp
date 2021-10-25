@@ -90,7 +90,10 @@ void mitk::TrackingTool::SetToolName(const char* _arg)
 }
 
 
-void mitk::TrackingTool::SetToolName( const std::string _arg )
+// HRS_NAVIGATION_MODIFICATION starts
+// void mitk::TrackingTool::SetToolName(const std::string _arg)
+void mitk::TrackingTool::SetToolName(const std::string& _arg)
+// HRS_NAVIGATION_MODIFICATION ends
 {
   this->SetToolName(_arg.c_str());
 }

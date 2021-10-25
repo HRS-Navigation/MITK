@@ -54,13 +54,13 @@ private:
    * @param v2    The vector v2 of the assignment v1 = v2
    * @param v1Name        The type name of v1 (e.g.: mitk::Vector3D). Necessary for the correct test output.
    * @param v2Name        The type name of v2 (e.g.: mitk::Vector3D). Necessary for the correct test output.
-  *  @param eps   defines the allowed tolerance when testing for equality.
+  *  @param epsa   defines the allowed tolerance when testing for equality.
    */
   template <typename T1, typename T2>
-  void TestForEquality(T1 v1, T2 v2, std::string v1Name, std::string v2Name, ScalarType eps = mitk::eps)
+  void TestForEquality(T1 v1, T2 v2, std::string v1Name, std::string v2Name, ScalarType epsa = mitk::eps)
   {
     CPPUNIT_ASSERT_EQUAL_MESSAGE(
-      "\nAssigning " + v2Name + " to " + v1Name + ":\n both are equal", true, EqualArray(v1, v2, 3, eps));
+      "\nAssigning " + v2Name + " to " + v1Name + ":\n both are equal", true, EqualArray(v1, v2, 3, epsa));
   }
 
 public:

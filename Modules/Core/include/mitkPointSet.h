@@ -126,6 +126,10 @@ namespace mitk
 
     typedef MeshType DataType;
     typedef Point3D PointType;
+    // HRS_NAVIGATION_MODIFICATION starts
+    typedef Point3F PointTypeF;
+    // HRS_NAVIGATION_MODIFICATION ends
+
     typedef DataType::PointIdentifier PointIdentifier;
     typedef DataType::PointsContainer PointsContainer;
     typedef DataType::PointsContainerIterator PointsIterator;
@@ -189,6 +193,12 @@ namespace mitk
      * \brief Set the given point in world coordinate system into the itkPointSet.
      */
     void InsertPoint(PointIdentifier id, PointType point, int t = 0);
+
+    // HRS_NAVIGATION_MODIFICATION starts
+    void InsertPoint(PointIdentifier id, PointTypeF point, int t = 0);
+    // HRS_NAVIGATION_MODIFICATION ends
+
+
 
     /**
     * \brief Set the given point in world coordinate system with given PointSpecificationType

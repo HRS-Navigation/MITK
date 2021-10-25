@@ -100,6 +100,16 @@ void QmitkInteractiveTransformationWidget::SetToolToEdit(const mitk::NavigationT
   m_ResetGeometry->SetIndexToWorldTransformByVtkMatrix(m_Geometry->GetVtkMatrix()); //Remember the original values to be able to reset and abort everything
 }
 
+// HRS_NAVIGATION_MODIFICATION starts
+void QmitkInteractiveTransformationWidget::SetGeometry(mitk::BaseGeometry::Pointer geometryToSet)
+{
+  // use the set-fuction via vtk matrix, 'cause this garantees a deep copy and not just sharing a pointer.
+  m_Geometry = geometryToSet;
+  m_ResetGeometry->SetIndexToWorldTransformByVtkMatrix(m_Geometry->GetVtkMatrix()); // Remember the original values to be able to reset and abort everything
+}
+// HRS_NAVIGATION_MODIFICATION ends
+
+
 void QmitkInteractiveTransformationWidget::SetDefaultOffset(const mitk::Point3D _defaultValues)
 {
   m_Geometry->SetOrigin(_defaultValues);

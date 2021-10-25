@@ -59,12 +59,22 @@ namespace mitk
     * \brief Sets the calibration name of the tool. Be careful, only use this method if you know what you are doing.
     * If you want to change the tool name use the method setToolName instead!
     */
-    void SetCalibrationName(std::string name);
+    // HRS_NAVIGATION_MODIFICATION starts
+    //void SetCalibrationName(std::string name);
+    void SetCalibrationName(const std::string &name);
+    // HRS_NAVIGATION_MODIFICATION ends
 
     /**
     * @return Returns the tool handle of the tool.
     */
     claronToolHandle GetToolHandle();
+
+    // HRS_NAVIGATION_MODIFICATION starts
+    /**
+     * @return Returns the thermal hazard associated with the tool
+     */
+    int GetToolThermalHazard();
+    // HRS_NAVIGATION_MODIFICATION ends
 
   protected:
     itkFactorylessNewMacro(Self);
@@ -77,6 +87,13 @@ namespace mitk
     std::string m_CalibrationName;
     /** \brief Variable to check filename's format and to get back complete filename */
     std::string m_Filename;
+
+    // HRS_NAVIGATION_MODIFICATION starts
+    /** \Sets the thermal hazard associated with the given tool position calculation */
+    void SetToolThermalHazard(int);
+
+    int m_ToolThermalHazard;
+    // HRS_NAVIGATION_MODIFICATION ends
   };
 }//mitk
 #endif // MITKCLARONTOOL_H_HEADER_INCLUDED_

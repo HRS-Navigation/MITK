@@ -40,6 +40,10 @@ public:
   void SetThresholdTabEnabled(bool enable);
   void SetBellTabEnabled(bool enable);
 
+  // HRS_NAVIGATION_MODIFICATION starts
+  double GetThresholdValue();
+  // HRS_NAVIGATION_MODIFICATION ends
+
 public slots:
 
   void OnSavePreset();

@@ -125,6 +125,10 @@ bool mitk::ClaronTrackingDevice::StartTracking()
   m_Device->StopTracking();
   m_Device->Initialize(m_CalibrationDir,m_ToolfilesDir);
 
+  // HRS_NAVIGATION_MODIFICATION starts
+  m_TrackingFinishedMutex->Unlock(); // transfer the execution rights to tracking thread
+  // HRS_NAVIGATION_MODIFICATION ends
+
   if (m_Device->StartTracking())
   {
     mitk::IGTTimeStamp::GetInstance()->Start(this);
@@ -231,18 +235,28 @@ void mitk::ClaronTrackingDevice::TrackTools()
 
     while ((this->GetState() == Tracking) && (localStopTracking == false))
     {
-      this->GetDevice()->GrabFrame();
+      // HRS_NAVIGATION_MODIFICATION starts
+      //this->GetDevice()->GrabFrame();
+      // HRS_NAVIGATION_MODIFICATION ends
 
       std::vector<mitk::ClaronTool::Pointer> detectedTools = this->DetectTools();
       std::vector<mitk::ClaronTool::Pointer> allTools = this->GetAllTools();
       std::vector<mitk::ClaronTool::Pointer>::iterator itAllTools;
-      for(itAllTools = allTools.begin(); itAllTools != allTools.end(); itAllTools++)
+
+      // HRS_NAVIGATION_MODIFICATION starts
+      //for (itAllTools = allTools.begin(); itAllTools != allTools.end(); itAllTools++)
+      for (itAllTools = allTools.begin(); itAllTools != allTools.end(); ++itAllTools)
+      // HRS_NAVIGATION_MODIFICATION ends
       {
         mitk::ClaronTool::Pointer currentTool = *itAllTools;
         //test if current tool was detected
         std::vector<mitk::ClaronTool::Pointer>::iterator itDetectedTools;
         bool foundTool = false;
-        for(itDetectedTools = detectedTools.begin(); itDetectedTools != detectedTools.end(); itDetectedTools++)
+
+        // HRS_NAVIGATION_MODIFICATION starts
+        // for(itDetectedTools = detectedTools.begin(); itDetectedTools != detectedTools.end(); itDetectedTools++)
+        for (itDetectedTools = detectedTools.begin(); itDetectedTools != detectedTools.end(); ++itDetectedTools)
+        // HRS_NAVIGATION_MODIFICATION ends
         {
           mitk::ClaronTool::Pointer aktuDet = *itDetectedTools;
           std::string tempString(currentTool->GetCalibrationName());
@@ -259,9 +273,16 @@ void mitk::ClaronTrackingDevice::TrackTools()
 
         if (currentTool->GetToolHandle() != 0)
         {
-          currentTool->SetDataValid(true);
-          //get tip position of tool:
+          // HRS_NAVIGATION_MODIFICATION starts
+          //currentTool->SetDataValid(true);
+          // HRS_NAVIGATION_MODIFICATION ends
+          // get tip position of tool:
           std::vector<double> pos_vector = this->GetDevice()->GetTipPosition(currentTool->GetToolHandle());
+
+          // HRS_NAVIGATION_MODIFICATION starts
+          currentTool->SetToolThermalHazard(this->GetDevice()->GetToolThermalHazard());
+          // HRS_NAVIGATION_MODIFICATION ends
+
           //write tip position into tool:
           mitk::Point3D pos;
           pos[0] = pos_vector[0];
@@ -270,6 +291,12 @@ void mitk::ClaronTrackingDevice::TrackTools()
           currentTool->SetPosition(pos);
           //get tip quaternion of tool
           std::vector<double> quat = this->GetDevice()->GetTipQuaternions(currentTool->GetToolHandle());
+
+          // HRS_NAVIGATION_MODIFICATION starts
+          currentTool->SetDataValid(this->GetDevice()->IsLastTrackerIdentifiedInRefSpace() ||
+                                    this->GetDevice()->IsLastTrackerReferenceNotSet());
+          // HRS_NAVIGATION_MODIFICATION ends
+
           //write tip quaternion into tool
           mitk::Quaternion orientation(quat[1], quat[2], quat[3], quat[0]);
           currentTool->SetOrientation(orientation);
@@ -295,7 +322,12 @@ void mitk::ClaronTrackingDevice::TrackTools()
   catch(...)
   {
     this->StopTracking();
-    mitkThrowException(mitk::IGTHardwareException) << "Error while trying to track tools. Thread stopped.";
+    // HRS_NAVIGATION_MODIFICATION starts
+    MITK_ERROR << "Error while trying to track tools. Thread stopped.";
+    // Disabled exception throwing as it cause application crash. As it is from a separate thread
+    // Unwanted Stopped tracking indicates error to the client logic.
+    // mitkThrowException(mitk::IGTHardwareException) << "Error while trying to track tools. Thread stopped.";
+    // HRS_NAVIGATION_MODIFICATION ends
   }
 }
 
@@ -325,3 +357,11 @@ ITK_THREAD_RETURN_TYPE mitk::ClaronTrackingDevice::ThreadStartTracking(void* pIn
 
   return ITK_THREAD_RETURN_VALUE;
 }
+
+
+// HRS_NAVIGATION_MODIFICATION starts
+void mitk::ClaronTrackingDevice::SetTrackerlessNavEnabledTracker(mtHandle trackerHandle, bool enable)
+{
+  this->GetDevice()->SetTrackerlessNavEnabledTracker(trackerHandle, enable);
+}
+// HRS_NAVIGATION_MODIFICATION ends

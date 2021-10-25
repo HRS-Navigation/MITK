@@ -16,6 +16,10 @@ found in the LICENSE file.
 // qt widgets module
 #include "MitkQtWidgetsExports.h"
 #include "QmitkAbstractMultiWidget.h"
+// HRS_NAVIGATION_MODIFICATION starts
+#include <mitkAnnotation.h>
+// HRS_NAVIGATION_MODIFICATION ends
+
 
 /**
 * @brief The 'QmitkStdMultiWidget' is a 'QmitkAbstractMultiWidget' that is used to display multiple render windows at once.
@@ -96,6 +100,19 @@ public:
    */
   mitk::Color GetDecorationColor(unsigned int widgetNumber);
 
+
+// HRS_NAVIGATION_MODIFICATION starts
+  /// Returns the Visual mode set for the application. Like Cranial, ENT, Spine
+  int GetVisualMode();
+
+  /// Sets the visual mode.
+  void SetVisualMode(int mode);
+
+  void DisableCrossHairMovementForMeasurement();
+
+  void EnableCrossHairMovementForMeasurement();
+// HRS_NAVIGATION_MODIFICATION ends
+
 public Q_SLOTS:
 
   // mouse events
@@ -115,6 +132,16 @@ public Q_SLOTS:
   void SetWidgetPlaneVisibility(const char *widgetName, bool visible, mitk::BaseRenderer *renderer = nullptr);
 
   void SetWidgetPlanesVisibility(bool visible, mitk::BaseRenderer *renderer = nullptr);
+
+// HRS_NAVIGATION_MODIFICATION starts
+  // It will reset crosshair without changing current zoom state....
+  void ResetCrosshairZoomAware(bool resetZoom = false);
+
+  // Funcions for adding anykind of annotation to view....
+  void AddAnnotation(mitk::Annotation::Pointer annotation, mitk::BaseRenderer::Pointer renderer);
+
+  void RemoveAnnotation(mitk::Annotation::Pointer annotation);
+// HRS_NAVIGATION_MODIFICATION ends
 
 Q_SIGNALS:
 
@@ -156,6 +183,32 @@ private:
 
   bool m_PendingCrosshairPositionEvent;
 
-};
 
+// HRS_NAVIGATION_MODIFICATION starts
+public:
+
+  // Cranial = Default left to right,
+  // ENT     = Left on Left
+  // Spine   = Axial Upside Down Left to right match
+  // Spine_L2L= Axial Upside Down, Left to Left match
+
+  enum
+  {
+    CRANIAL,
+    ENT,
+    SPINE,
+    SPINE_L2L
+  };
+
+protected:
+  int m_visual_mode;
+
+  // This parameters are for enabling/disabling crosshair while performing drawign for measurement...
+  bool m_EnabledCrossHairMovementForMeasurement;
+  // holds configuration objects that have been deactivated
+  std::map<us::ServiceReferenceU, mitk::EventConfig> m_DisplayInteractorConfigs;
+  std::set<mitk::Annotation::Pointer> m_Annotations;
+// HRS_NAVIGATION_MODIFICATION ends
+
+};
 #endif // QMITKSTDMULTIWIDGET_H

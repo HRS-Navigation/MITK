@@ -10,81 +10,90 @@ found in the LICENSE file.
 
 ============================================================================*/
 
-#include <mitkClaronInterface.h>
-#include <string>
+// HRS_NAVIGATION_MODIFICATION starts
+
 #include <MTC.h>
 #include <math.h>
+#include <mitkClaronInterface.h>
+#include <mitkIGTHardwareException.h>
 #include <mitkNumericTypes.h>
+#include <string>
+
+const double __OneDivideByRootTwo = (1.0 / (sqrt(2.0)));
 
 mitk::ClaronInterface::ClaronInterface()
 {
+  m_ClaronToolNameCache.resize(MT_MAX_STRING_LENGTH);
   isTracking = false;
-  sprintf(calibrationDir,"No calibration dir set yet");
-  sprintf(markerDir,"No marker dir set yet");
+  sprintf(calibrationDir, "No calibration dir set yet");
+  sprintf(markerDir, "No marker dir set yet");
+  m_LastTrackerIdentifiedInRefSpace = false;
+  m_ReferenceNotSet = true;
 }
 
-mitk::ClaronInterface::~ClaronInterface()
-{
-
-}
+mitk::ClaronInterface::~ClaronInterface() {}
 
 void mitk::ClaronInterface::Initialize(std::string calibrationDir, std::string toolFilesDir)
 {
   sprintf(this->calibrationDir, calibrationDir.c_str());
-  sprintf(this->markerDir,toolFilesDir.c_str());
+  sprintf(this->markerDir, toolFilesDir.c_str());
   this->IdentifiedMarkers = 0;
   this->PoseXf = 0;
   this->CurrCamera = 0;
   this->IdentifyingCamera = 0;
+  this->ToolThermalHazard = 0;
+  m_HandleForTrackerless.clear();
+  m_TrackerlessHandleLastValidData.clear();
 }
-
 
 bool mitk::ClaronInterface::StartTracking()
 {
   isTracking = false;
-  MTC( Cameras_AttachAvailableCameras(calibrationDir) ); //Connect to camera
-  if (Cameras_Count() < 1)
-  {
-    printf("No camera found!\n");
-    return false;
-  }
 
   try
   {
-    //Step 1: initialize cameras
-    MTC(Cameras_HistogramEqualizeImagesSet(true)); //set the histogram equalizing
-    MTC( Cameras_ItemGet(0, &CurrCamera) ); //Obtain a handle to the first/only camera in the array
-
-    MITK_INFO<<markerDir;
-    //Step 2: Load the marker templates
-    MTC( Markers_LoadTemplates(markerDir) ); //Path to directory where the marker templates are
-    printf("Loaded %d marker templates\n",Markers_TemplatesCount());
-
-    //Step 3: Wait for 20 frames
-    for (int i=0; i<20; i++)//the first 20 frames are auto-adjustment frames, we ignore them
+    MTC(Cameras_AttachAvailableCameras(calibrationDir)); // Connect to camera
+    if (Cameras_Count() < 1)
     {
-      MTC( Cameras_GrabFrame(0) ); //Grab a frame (all cameras together)
-      MTC( Markers_ProcessFrame(0) ); //Proces the frame(s) to obtain measurements
+      MITK_ERROR << "No camera found!";
+      return false;
+    }
+    if (Cameras_Count() > 1)
+    {
+      MITK_ERROR << "More then one Camera found";
+      return false;
+    }
+    // Step 1: initialize cameras
+    MTC(Cameras_ItemGet(0, &CurrCamera)); // Obtain a handle to the first/only camera in the array
+    // Step 2: Load the marker templates
+    MTC(Markers_LoadTemplates(markerDir)); // Path to directory where the marker templates are
+    MITK_INFO << "Loaded marker templates\n" << Markers_TemplatesCount();
+    MTC(Markers_BackGroundProcessSet(true));
+    MTC(XPoints_BackGroundProcessSet(true));
+    Markers_SmallerXPFootprintSet(false); // by default it was on.
+                                          // Step 3: Wait for 20 frames
+    for (int i = 0; i <= 20; i++)         // the first 20 frames are auto-adjustment frames, we ignore them
+    {
+      MTC(Markers_GetIdentifiedMarkersFromBackgroundThread(CurrCamera));
+      // MTC( Camera_GrabFrame(CurrCamera) ); //Grab a frame (all cameras together)
+      // MTC( Markers_ProcessFrame(CurrCamera) ); //Process the frame(s) to obtain measurements
     }
 
-    //Step 4: Initialize IdentifiedMarkers and PoseXf
+    // We are changing it to false,
+    // As it is auto equalizing image so image will look almost similar eveytime irrespective of light,
+    // So we are unable to see where light is focusing and where it's dark
+    // MTC(Cameras_HistogramEqualizeImagesSet(true)); // set the histogram equalizing
+
+    // Step 4: Initialize IdentifiedMarkers and PoseXf
     IdentifiedMarkers = Collection_New();
     PoseXf = Xform3D_New();
 
-    //now we are tracking...
-
-    /* MTHome is not in use. The following code has to be activated if you want to use MTHome!
-    //Initialize MTHome
-    if ( getMTHome (MTHome, sizeof(MTHome)) < 0 )
-    {
-    // No Environment
-    printf("MTHome environment variable is not set!\n");
-    }*/
+    // now we are tracking...
   }
-  catch(...)
+  catch (...)
   {
     Cameras_Detach();
-    printf(" Error while connecting MicronTracker!\n -------------------------------");
+    MITK_INFO << " Error while connecting MicronTracker. " << MTLastErrorString();
     return false;
   }
 
@@ -96,14 +105,23 @@ bool mitk::ClaronInterface::StopTracking()
 {
   if (isTracking)
   {
-    //free up the resources
+    // free up the resources
     Collection_Free(IdentifiedMarkers);
     Xform3D_Free(PoseXf);
 
-    //stop the camera
-    Cameras_Detach();
+    try
+    {
+      // stop the camera
+      Cameras_Detach();
+    }
+    catch (...)
+    {
+      MITK_ERROR << "error in detaching camera. " << MTLastErrorString();
+      isTracking = false;
+      return false;
+    }
 
-    //now tracking is stopped
+    // now tracking is stopped
     isTracking = false;
     return true;
   }
@@ -115,17 +133,70 @@ bool mitk::ClaronInterface::StopTracking()
 
 std::vector<mitk::claronToolHandle> mitk::ClaronInterface::GetAllActiveTools()
 {
-  //Set returnvalue
+  // Set return value
   std::vector<claronToolHandle> returnValue;
 
-  //Here, MTC internally maintains the measurement results.
-  //Those results can be accessed until the next call to Markers_ProcessFrame, when they
-  //are updated to reflect the next frame's content.
-  //First, we will obtain the collection of the markers that were identified.
-  MTC( Markers_IdentifiedMarkersGet(0, IdentifiedMarkers) );
+  // Here, MTC internally maintains the measurement results.
+  // Those results can be accessed until the next call to Markers_ProcessFrame, when they
+  // are updated to reflect the next frame's content.
+  // First, we will obtain the collection of the markers that were identified.
+  // bool result = false;
+  // MTC ( Markers_BackGroundProcessGet(&result));
+  // if (result == false)
+  //{
+  // // If camera disconnects then from background processing APIs we don't get any error / indication.
+  // // but it sets the background process flag to 0;
+  //
+  // int result = Camera_GrabFrame(CurrCamera);
+  // if( result != mtOK ) //Camera(s)_GrabFrame firsts gives frame grab error & then crashes when camera is powered off
+  // while running
+  // {
+  //  MTC(Markers_AutoAdjustShortCycleHdrExposureLockedMarkersSet(false)); // To fix a bug in MTC library. If HDR is on
+  //  & camera gets disconnected then when camera is reconnected
+  //  // driver expect HDR to on but in initialization HDR is off. Which results into frames freeze
+  //  MITK_INFO << "Camera Connection Problem " << MTLastErrorString();
+  //  mitkThrowException(mitk::IGTHardwareException) << "Camera Connection Problem."; // It will be handled at later
+  //  stage
+  // }
+  //}
+  if (Markers_GetIdentifiedMarkersFromBackgroundThread(CurrCamera) != mtOK)
+  {
+    MTC(Markers_AutoAdjustShortCycleHdrExposureLockedMarkersSet(
+      false)); // To fix a bug in MTC library. If HDR is on & camera gets disconnected then when camera is reconnected
+    // driver expect HDR to on but in initialization HDR is off. Which results into frames freeze
+    MITK_INFO << "Camera Connection Problem " << MTLastErrorString();
+    mitkThrowException(mitk::IGTHardwareException) << "Camera Connection Problem."; // It will be handled at later stage
+  };
 
-  //Now we iterate on the identified markers and add them to the returnvalue
-  for (int j=1; j<=Collection_Count(IdentifiedMarkers); j++)
+  // Markers_GetIdentifiedMarkersFromBackgroundThread() locks the pose data buffer until a new pose data becomes
+  // available therefore calling Markers_IdentifiedMarkersGet() might take a few milliseconds until the data becomes
+  // ready. If you don't want to wait for the pose, Use Markers_IsBackgroundFrameProcessedGet() before calling
+  // Markers_IdentifiedMarkersGet() to find out if data is ready. Sometimes Markers_IdentifiedMarkersGet throws
+  // exception when data is not available. to avoid that following loop is being used.
+  bool backgroundFrameProcessed = false;
+  for (int i = 0; i < 300; i++)
+  {
+    MTC(Markers_IsBackgroundFrameProcessedGet(&backgroundFrameProcessed));
+    if (backgroundFrameProcessed == true)
+      break;
+    else
+      Sleep(1);
+  }
+
+  if (!backgroundFrameProcessed)
+    return returnValue;
+
+  if (Markers_IdentifiedMarkersGet(NULL, IdentifiedMarkers) != mtOK)
+  {
+    MTC(Markers_AutoAdjustShortCycleHdrExposureLockedMarkersSet(
+      false)); // To fix a bug in MTC library. If HDR is on & camera gets disconnected then when camera is reconnected
+    // driver expect HDR to on but in initialization HDR is off. Which results into frames freeze
+    MITK_INFO << "Marker Identification Problem " << MTLastErrorString();
+    mitkThrowException(mitk::IGTHardwareException) << "Camera Connection Problem."; // It will be handled at later stage
+  }
+
+  // Now we iterate on the identified markers and add them to the return value
+  for (int j = 1; j <= Collection_Count(IdentifiedMarkers); j++)
   {
     // Obtain the marker's handle, and use it to obtain the pose in the current camera's space
     // using our Xform3D object, PoseXf.
@@ -137,33 +208,119 @@ std::vector<mitk::claronToolHandle> mitk::ClaronInterface::GetAllActiveTools()
 
 void mitk::ClaronInterface::GrabFrame()
 {
-  MTC( Cameras_GrabFrame(0) ); //Grab a frame
-  MTC( Markers_ProcessFrame(0) ); //Process the frame(s)
+  Sleep(50); // to stop Frame grabbing errors. It seems fast calling to frame grab gives the error.
+  if (Camera_GrabFrame(CurrCamera) !=
+      mtOK) // Camera(s)_GrabFrame firsts gives frame grab error & then crashes when camera is powered off while running
+  {
+    mitkThrowException(mitk::IGTHardwareException)
+      << "Camera Connection Problem." << MTLastErrorString(); // It will be handled at later stage
+  }
+  MTC(Markers_ProcessFrame(CurrCamera)); // Process the frame(s)
 }
 
 std::vector<double> mitk::ClaronInterface::GetTipPosition(mitk::claronToolHandle c)
 {
   std::vector<double> returnValue;
-  double  Position[3];
+  double Position[3];
   mtHandle t2m = Xform3D_New(); // tooltip to marker xform handle
   mtHandle t2c = Xform3D_New(); // tooltip to camera xform handle
   mtHandle m2c = Xform3D_New(); // marker to camera xform handle
 
-  //Get m2c
-  MTC( Marker_Marker2CameraXfGet (c, CurrCamera, m2c, &IdentifyingCamera) );
-  //Get t2m
-  MTC( Marker_Tooltip2MarkerXfGet (c,  t2m ));
-  //Transform both to t2c
-  MTC(Xform3D_Concatenate(t2m,m2c,t2c));
+  mtHandle refHandle;
+  MTC(Marker_ReferenceMarkerHandleGet(c, &refHandle));
 
-  //Get position
-  MTC( Xform3D_ShiftGet(t2c, Position) );
+  m_ReferenceNotSet = (0 == refHandle || refHandle == CurrCamera);
 
+  if (!m_ReferenceNotSet)
+  {
+    MTC(Marker_Tooltip2ReferenceXfGet(c, CurrCamera, t2c, &IdentifyingCamera));
+    MTC(Marker_MarkerWasIdentifiedInRefSpaceGet(c, CurrCamera, &m_LastTrackerIdentifiedInRefSpace));
+
+    if (!m_LastTrackerIdentifiedInRefSpace && (m_HandleForTrackerless.find(refHandle) != m_HandleForTrackerless.end()))
+    {
+      // Get m2c
+      MTC(Marker_Marker2CameraXfGet(c, CurrCamera, m2c, &IdentifyingCamera));
+      // Get t2m
+      MTC(Marker_Tooltip2MarkerXfGet(c, t2m));
+      // Transform both to t2c
+      MTC(Xform3D_Concatenate(t2m, m2c, t2c));
+
+      auto itr = m_TrackerlessHandleLastValidData.find(refHandle);
+      if (itr != m_TrackerlessHandleLastValidData.end())
+      {
+        double positionToSet[3];
+        positionToSet[0] = itr->second.first[0];
+        positionToSet[1] = itr->second.first[1];
+        positionToSet[2] = itr->second.first[2];
+
+        double quarternionsToSet[4];
+        quarternionsToSet[0] = itr->second.second[0];
+        quarternionsToSet[1] = itr->second.second[1];
+        quarternionsToSet[2] = itr->second.second[2];
+        quarternionsToSet[3] = itr->second.second[3];
+
+        // reference handle is enabled for trackerless navigation...
+        // so will compute its data as per last valid data...
+        mtHandle oldRefDataM2CHandle = Xform3D_New();
+        Xform3D_ShiftSet(oldRefDataM2CHandle, positionToSet);
+        Xform3D_RotQuaternionsSet(oldRefDataM2CHandle, quarternionsToSet);
+
+        mtHandle oldRefDataC2MHandle = Xform3D_New();
+        Xform3D_Inverse(oldRefDataM2CHandle, oldRefDataC2MHandle);
+        Xform3D_Free(oldRefDataM2CHandle);
+
+        mtHandle finalHandle = Xform3D_New();
+        Xform3D_Concatenate(t2c, oldRefDataC2MHandle, finalHandle);
+        Xform3D_Free(t2c);
+        t2c = finalHandle;
+
+        m_LastTrackerIdentifiedInRefSpace = true;
+
+        Xform3D_Free(oldRefDataC2MHandle);
+      }
+    }
+  }
+  else
+  {
+    // Get m2c
+    MTC(Marker_Marker2CameraXfGet(c, CurrCamera, m2c, &IdentifyingCamera));
+    // Get t2m
+    MTC(Marker_Tooltip2MarkerXfGet(c, t2m));
+    // Transform both to t2c
+    MTC(Xform3D_Concatenate(t2m, m2c, t2c));
+  }
+
+  // Get position
+  MTC(Xform3D_ShiftGet(t2c, Position));
+
+  // If this tracker is enable for trackerless than we need to keep its last valid value...
+  if (m_HandleForTrackerless.find(c) != m_HandleForTrackerless.end())
+  {
+    auto &valRef = m_TrackerlessHandleLastValidData[c];
+    valRef.first.clear();
+    valRef.first.push_back(Position[0]);
+    valRef.first.push_back(Position[1]);
+    valRef.first.push_back(Position[2]);
+  }
+
+  // We will also check and report any measurement hazard
+  mtMeasurementHazardCode Hazard;
+  MTC(Xform3D_HazardCodeGet(t2c, &Hazard));
+  SetToolThermalHazard(Hazard);
   // Here we have to negate the X- and Y-coordinates because of a bug of the
   // MTC-library.
-  returnValue.push_back(-Position[0]);
-  returnValue.push_back(-Position[1]);
-  returnValue.push_back(Position[2]);
+  if (m_LastTrackerIdentifiedInRefSpace && !m_ReferenceNotSet)
+  {
+    returnValue.push_back(-Position[2]);
+    returnValue.push_back(Position[1]);
+    returnValue.push_back(Position[0]);
+  }
+  else
+  {
+    returnValue.push_back(-Position[0]);
+    returnValue.push_back(-Position[1]);
+    returnValue.push_back(Position[2]);
+  }
 
   return returnValue;
 }
@@ -171,19 +328,79 @@ std::vector<double> mitk::ClaronInterface::GetTipPosition(mitk::claronToolHandle
 std::vector<double> mitk::ClaronInterface::GetPosition(claronToolHandle c)
 {
   std::vector<double> returnValue;
-  double  Position[3];
-  MTC( Marker_Marker2CameraXfGet (c, CurrCamera, PoseXf, &IdentifyingCamera) );
-  MTC( Xform3D_ShiftGet(PoseXf, Position) );
+  double Position[3];
+
+  mtHandle refHandle;
+  MTC(Marker_ReferenceMarkerHandleGet(c, &refHandle));
+
+  m_ReferenceNotSet = (0 == refHandle || refHandle == CurrCamera);
+
+  if (!m_ReferenceNotSet)
+  {
+    MTC(Marker_Marker2ReferenceXfGet(c, CurrCamera, PoseXf, &IdentifyingCamera));
+    MTC(Marker_MarkerWasIdentifiedInRefSpaceGet(c, CurrCamera, &m_LastTrackerIdentifiedInRefSpace));
+
+    if (!m_LastTrackerIdentifiedInRefSpace && (m_HandleForTrackerless.find(refHandle) != m_HandleForTrackerless.end()))
+    {
+      MTC(Marker_Marker2CameraXfGet(c, CurrCamera, PoseXf, &IdentifyingCamera));
+
+      auto itr = m_TrackerlessHandleLastValidData.find(refHandle);
+      if (itr != m_TrackerlessHandleLastValidData.end())
+      {
+        double positionToSet[3];
+        positionToSet[0] = itr->second.first[0];
+        positionToSet[1] = itr->second.first[1];
+        positionToSet[2] = itr->second.first[2];
+
+        double quarternionsToSet[4];
+        quarternionsToSet[0] = itr->second.second[0];
+        quarternionsToSet[1] = itr->second.second[1];
+        quarternionsToSet[2] = itr->second.second[2];
+        quarternionsToSet[3] = itr->second.second[3];
+
+        // reference handle is enabled for trackerless navigation...
+        // so will compute its data as per last valid data...
+        mtHandle oldRefDataM2CHandle = Xform3D_New();
+        Xform3D_ShiftSet(oldRefDataM2CHandle, positionToSet);
+        Xform3D_RotQuaternionsSet(oldRefDataM2CHandle, quarternionsToSet);
+
+        mtHandle oldRefDataC2MHandle = Xform3D_New();
+        Xform3D_Inverse(oldRefDataM2CHandle, oldRefDataC2MHandle);
+        Xform3D_Free(oldRefDataM2CHandle);
+
+        mtHandle finalHandle = Xform3D_New();
+        Xform3D_Concatenate(PoseXf, oldRefDataC2MHandle, finalHandle);
+        Xform3D_Free(PoseXf);
+        PoseXf = finalHandle;
+
+        m_LastTrackerIdentifiedInRefSpace = true;
+
+        Xform3D_Free(oldRefDataC2MHandle);
+      }
+    }
+  }
+  else
+    MTC(Marker_Marker2CameraXfGet(c, CurrCamera, PoseXf, &IdentifyingCamera));
+
+  MTC(Xform3D_ShiftGet(PoseXf, Position));
 
   // Here we have to negate the X- and Y-coordinates because of a bug of the
   // MTC-library.
-  returnValue.push_back(-Position[0]);
-  returnValue.push_back(-Position[1]);
-  returnValue.push_back(Position[2]);
+  if (m_LastTrackerIdentifiedInRefSpace && !m_ReferenceNotSet)
+  {
+    returnValue.push_back(-Position[2]);
+    returnValue.push_back(Position[1]);
+    returnValue.push_back(Position[0]);
+  }
+  else
+  {
+    returnValue.push_back(-Position[0]);
+    returnValue.push_back(-Position[1]);
+    returnValue.push_back(Position[2]);
+  }
 
   return returnValue;
 }
-
 
 std::vector<double> mitk::ClaronInterface::GetTipQuaternions(claronToolHandle c)
 {
@@ -193,87 +410,378 @@ std::vector<double> mitk::ClaronInterface::GetTipQuaternions(claronToolHandle c)
   mtHandle t2c = Xform3D_New(); // tooltip to camera xform handle
   mtHandle m2c = Xform3D_New(); // marker to camera xform handle
 
-  //Get m2c
-  MTC( Marker_Marker2CameraXfGet (c, CurrCamera, m2c, &IdentifyingCamera) );
-  //Get t2m
-  MTC( Marker_Tooltip2MarkerXfGet (c,  t2m ));
-  //Transform both to t2c
-  MTC(Xform3D_Concatenate(t2m,m2c,t2c));
+  mtHandle IdentifyingCamera;
 
-  //get the Claron-Quaternion
+  mtHandle refHandle;
+  MTC(Marker_ReferenceMarkerHandleGet(c, &refHandle));
+
+  m_ReferenceNotSet = (0 == refHandle || refHandle == CurrCamera);
+
+  // get the Claron-Quaternion
   double Quarternions[4];
-  MTC( Xform3D_RotQuaternionsGet(t2c, Quarternions) );
-  mitk::Quaternion claronQuaternion;
 
-  //note: claron quarternion has different order than the mitk quarternion
-  claronQuaternion[3] = Quarternions[0];
-  claronQuaternion[0] = Quarternions[1];
-  claronQuaternion[1] = Quarternions[2];
-  claronQuaternion[2] = Quarternions[3];
+  if (!m_ReferenceNotSet)
+  {
+    /*MTC(Marker_Tooltip2ReferenceXfGet(c, CurrCamera, t2c, &IdentifyingCamera));
+    MTC(Marker_MarkerWasIdentifiedInRefSpaceGet(c, CurrCamera, &m_LastTrackerIdentifiedInRefSpace));*/
 
-  // Here we have to make a -90�-turn around the Y-axis because of a bug of the
-  // MTC-library.
-  mitk::Quaternion minusNinetyDegreeY;
-  minusNinetyDegreeY[3] = sqrt(2.0)/2.0;
-  minusNinetyDegreeY[0] = 0;
-  minusNinetyDegreeY[1] = -1.0/(sqrt(2.0));
-  minusNinetyDegreeY[2] = 0;
+    MTC(Marker_Marker2CameraXfGet(c, CurrCamera, m2c, &IdentifyingCamera)); // Get m2c
+    MTC(Marker_Tooltip2MarkerXfGet(c, t2m));                                // Get t2m
+    MTC(Xform3D_Concatenate(t2m, m2c, t2c));                                // Transform both to t2c
 
-  //calculate the result...
-  mitk::Quaternion erg = (minusNinetyDegreeY*claronQuaternion);
+    mtHandle r2c = Xform3D_New(); // tooltip to camera xform handle
 
-  returnValue.push_back(erg[3]);
-  returnValue.push_back(erg[0]);
-  returnValue.push_back(erg[1]);
-  returnValue.push_back(erg[2]);
+    MTC(Marker_Marker2CameraXfGet(refHandle, CurrCamera, m2c, &IdentifyingCamera)); // Get m2c
+
+    MTC(Marker_WasIdentifiedGet(refHandle, CurrCamera, &m_LastTrackerIdentifiedInRefSpace));
+
+    if (m_LastTrackerIdentifiedInRefSpace)
+    {
+      MTC(Marker_Tooltip2MarkerXfGet(refHandle, t2m)); // Get t2m
+      MTC(Xform3D_Concatenate(t2m, m2c, r2c));         // Transform both to r2c
+
+      // note: claron quarternion has different order than the mitk quarternion
+      double quaternionT2C[4];
+      MTC(Xform3D_RotQuaternionsGet(t2c, quaternionT2C));
+      rotateYAxisNinetyDegree(quaternionT2C, quaternionT2C);
+
+      double quaternionR2C[4];
+      MTC(Xform3D_RotQuaternionsGet(r2c, quaternionR2C));
+      rotateYAxisNinetyDegree(quaternionR2C, quaternionR2C);
+
+      Xform3D_Free(r2c);
+
+      mitk::Quaternion QuaternionToSet1;
+      QuaternionToSet1[3] = quaternionT2C[0];
+      QuaternionToSet1[0] = quaternionT2C[1];
+      QuaternionToSet1[1] = quaternionT2C[2];
+      QuaternionToSet1[2] = quaternionT2C[3];
+
+      mitk::Quaternion QuaternionToSet2;
+      QuaternionToSet2[3] = quaternionR2C[0];
+      QuaternionToSet2[0] = quaternionR2C[1];
+      QuaternionToSet2[1] = quaternionR2C[2];
+      QuaternionToSet2[2] = quaternionR2C[3];
+
+      auto finalToSet = (QuaternionToSet2.inverse() * QuaternionToSet1);
+      Quarternions[0] = finalToSet[3];
+      Quarternions[1] = finalToSet[0];
+      Quarternions[2] = finalToSet[1];
+      Quarternions[3] = finalToSet[2];
+
+      t2c = 0; // as we don't have to take it from claron again...
+    }
+
+    if (!m_LastTrackerIdentifiedInRefSpace && (m_HandleForTrackerless.find(refHandle) != m_HandleForTrackerless.end()))
+    {
+      // Get m2c
+      MTC(Marker_Marker2CameraXfGet(c, CurrCamera, m2c, &IdentifyingCamera));
+      // Get t2m
+      MTC(Marker_Tooltip2MarkerXfGet(c, t2m));
+      // Transform both to t2c
+      MTC(Xform3D_Concatenate(t2m, m2c, t2c));
+
+      auto itr = m_TrackerlessHandleLastValidData.find(refHandle);
+      if (itr != m_TrackerlessHandleLastValidData.end())
+      {
+        double quaternionT2C[4];
+        MTC(Xform3D_RotQuaternionsGet(t2c, quaternionT2C));
+        rotateYAxisNinetyDegree(quaternionT2C, quaternionT2C);
+
+        double quaternionR2C[4];
+        quaternionR2C[0] = itr->second.second[0];
+        quaternionR2C[1] = itr->second.second[1];
+        quaternionR2C[2] = itr->second.second[2];
+        quaternionR2C[3] = itr->second.second[3];
+        rotateYAxisNinetyDegree(quaternionR2C, quaternionR2C);
+
+        mitk::Quaternion QuaternionToSet1;
+        QuaternionToSet1[3] = quaternionT2C[0];
+        QuaternionToSet1[0] = quaternionT2C[1];
+        QuaternionToSet1[1] = quaternionT2C[2];
+        QuaternionToSet1[2] = quaternionT2C[3];
+
+        mitk::Quaternion QuaternionToSet2;
+        QuaternionToSet2[3] = quaternionR2C[0];
+        QuaternionToSet2[0] = quaternionR2C[1];
+        QuaternionToSet2[1] = quaternionR2C[2];
+        QuaternionToSet2[2] = quaternionR2C[3];
+
+        auto finalToSet = (QuaternionToSet2.inverse() * QuaternionToSet1);
+        Quarternions[0] = finalToSet[3];
+        Quarternions[1] = finalToSet[0];
+        Quarternions[2] = finalToSet[1];
+        Quarternions[3] = finalToSet[2];
+
+        m_LastTrackerIdentifiedInRefSpace = true;
+
+        t2c = 0; // as we don't have to take it from claron again...
+      }
+    }
+  }
+  else
+  {
+    // Get m2c
+    MTC(Marker_Marker2CameraXfGet(c, CurrCamera, m2c, &IdentifyingCamera));
+    // Get t2m
+    MTC(Marker_Tooltip2MarkerXfGet(c, t2m));
+    // Transform both to t2c
+    MTC(Xform3D_Concatenate(t2m, m2c, t2c));
+  }
+
+  if (0 != t2c)
+    MTC(Xform3D_RotQuaternionsGet(t2c, Quarternions));
+
+  // If this tracker is enable for trackerless than we need to keep its last valid value...
+  if (m_HandleForTrackerless.find(c) != m_HandleForTrackerless.end())
+  {
+    auto &valRef = m_TrackerlessHandleLastValidData[c];
+    valRef.second.clear();
+    valRef.second.push_back(Quarternions[0]);
+    valRef.second.push_back(Quarternions[1]);
+    valRef.second.push_back(Quarternions[2]);
+    valRef.second.push_back(Quarternions[3]);
+  }
+
+  ////////////////////////////////////////////////////////////////////
+  // Below logic is for rotating Quaternion around axis
+  // Just for example
+  //
+  /*Quaternion Quaternion::create_from_axis_angle(const double &xx, const double &yy, const double &zz, const double &a)
+  {
+    // Here we calculate the sin( theta / 2) once for optimization
+    double factor = sin(a / 2.0);
+
+    // Calculate the x, y and z of the quaternion
+    double x = xx * factor;
+    double y = yy * factor;
+    double z = zz * factor;
+
+    // Calcualte the w value by cos( theta / 2 )
+    double w = cos(a / 2.0);
+
+    return Quaternion(x, y, z, w).normalize();
+  }*/
+
+  mitk::Quaternion finalQuaternionToSet;
+
+  if (m_LastTrackerIdentifiedInRefSpace && !m_ReferenceNotSet)
+  {
+    finalQuaternionToSet[3] = Quarternions[0];
+    finalQuaternionToSet[0] = Quarternions[1];
+    finalQuaternionToSet[1] = Quarternions[2];
+    finalQuaternionToSet[2] = Quarternions[3];
+  }
+  else
+  {
+    // Here we have to make a -90°-turn around the Y-axis because of a bug of the
+    // MTC-library.
+    double finalRes[4];
+    rotateYAxisNinetyDegree(Quarternions, finalRes);
+    finalQuaternionToSet[3] = finalRes[0];
+    finalQuaternionToSet[0] = finalRes[1];
+    finalQuaternionToSet[1] = finalRes[2];
+    finalQuaternionToSet[2] = finalRes[3];
+  }
+
+  returnValue.push_back(finalQuaternionToSet[3]);
+  returnValue.push_back(finalQuaternionToSet[0]);
+  returnValue.push_back(finalQuaternionToSet[1]);
+  returnValue.push_back(finalQuaternionToSet[2]);
 
   return returnValue;
+}
+
+void mitk::ClaronInterface::rotateYAxisNinetyDegree(double quaternionWithFirstTheta[4],
+                                                    double *outQuaternionWithFirstTheta)
+{
+  if (nullptr == outQuaternionWithFirstTheta)
+    return;
+
+  mitk::Quaternion claronQuaternion;
+
+  // note: claron quarternion has different order than the mitk quarternion
+  claronQuaternion[3] = quaternionWithFirstTheta[0];
+  claronQuaternion[0] = quaternionWithFirstTheta[1];
+  claronQuaternion[1] = quaternionWithFirstTheta[2];
+  claronQuaternion[2] = quaternionWithFirstTheta[3];
+
+  mitk::Quaternion minusNinetyDegreeY;
+  minusNinetyDegreeY[3] = __OneDivideByRootTwo; // cos(-90/2)
+  minusNinetyDegreeY[0] = 0;
+  minusNinetyDegreeY[1] = -1 * __OneDivideByRootTwo; // sin(-90/2)
+  minusNinetyDegreeY[2] = 0;
+
+  // calculate the result...
+  mitk::Quaternion finalQuaternion = (minusNinetyDegreeY * claronQuaternion);
+  outQuaternionWithFirstTheta[0] = finalQuaternion[3];
+  outQuaternionWithFirstTheta[1] = finalQuaternion[0];
+  outQuaternionWithFirstTheta[2] = finalQuaternion[1];
+  outQuaternionWithFirstTheta[3] = finalQuaternion[2];
 }
 
 std::vector<double> mitk::ClaronInterface::GetQuaternions(claronToolHandle c)
 {
   std::vector<double> returnValue;
 
-  double  Quarternions[4];
-  MTC( Marker_Marker2CameraXfGet (c, CurrCamera, PoseXf, &IdentifyingCamera) );
-  MTC( Xform3D_RotQuaternionsGet(PoseXf, Quarternions) );
+  double Quarternions[4];
 
-  //here we have to compensate a bug in the MTC-lib. (difficult to understand)
-  mitk::Quaternion claronQuaternion;
+  mtHandle refHandle;
+  MTC(Marker_ReferenceMarkerHandleGet(c, &refHandle));
 
-  //note: claron quarternion has different order than the mitk quarternion
-  claronQuaternion[3] = Quarternions[0];
-  claronQuaternion[0] = Quarternions[1];
-  claronQuaternion[1] = Quarternions[2];
-  claronQuaternion[2] = Quarternions[3];
+  m_ReferenceNotSet = (0 == refHandle || refHandle == CurrCamera);
 
-  // Here we have to make a -90�-turn around the Y-axis because of a bug of the
-  // MTC-library.
-  mitk::Quaternion minusNinetyDegreeY;
-  minusNinetyDegreeY[3] = sqrt(2.0)/2.0;
-  minusNinetyDegreeY[0] = 0;
-  minusNinetyDegreeY[1] = -1.0/(sqrt(2.0));
-  minusNinetyDegreeY[2] = 0;
+  if (!m_ReferenceNotSet)
+  {
+    /*MTC(Marker_Marker2ReferenceXfGet(c, CurrCamera, PoseXf, &IdentifyingCamera));
+    MTC(Marker_MarkerWasIdentifiedInRefSpaceGet(c, CurrCamera, &m_LastTrackerIdentifiedInRefSpace));*/
+    MTC(Marker_Marker2CameraXfGet(c, CurrCamera, PoseXf, &IdentifyingCamera)); // Get m2c
 
-  //calculate the result...
-  mitk::Quaternion erg = (minusNinetyDegreeY*claronQuaternion);
+    mtHandle r2c = Xform3D_New();                                                   // tooltip to camera xform handle
+    MTC(Marker_Marker2CameraXfGet(refHandle, CurrCamera, r2c, &IdentifyingCamera)); // Get r2c
 
-  returnValue.push_back(erg[3]);
-  returnValue.push_back(erg[0]);
-  returnValue.push_back(erg[1]);
-  returnValue.push_back(erg[2]);
+    MTC(Marker_WasIdentifiedGet(refHandle, CurrCamera, &m_LastTrackerIdentifiedInRefSpace));
+
+    if (m_LastTrackerIdentifiedInRefSpace)
+    {
+      // note: claron quarternion has different order than the mitk quarternion
+      double quaternionT2C[4];
+      MTC(Xform3D_RotQuaternionsGet(PoseXf, quaternionT2C));
+      rotateYAxisNinetyDegree(quaternionT2C, quaternionT2C);
+
+      double quaternionR2C[4];
+      MTC(Xform3D_RotQuaternionsGet(r2c, quaternionR2C));
+      rotateYAxisNinetyDegree(quaternionR2C, quaternionR2C);
+
+      Xform3D_Free(r2c);
+
+      mitk::Quaternion QuaternionToSet1;
+      QuaternionToSet1[3] = quaternionT2C[0];
+      QuaternionToSet1[0] = quaternionT2C[1];
+      QuaternionToSet1[1] = quaternionT2C[2];
+      QuaternionToSet1[2] = quaternionT2C[3];
+
+      mitk::Quaternion QuaternionToSet2;
+      QuaternionToSet2[3] = quaternionR2C[0];
+      QuaternionToSet2[0] = quaternionR2C[1];
+      QuaternionToSet2[1] = quaternionR2C[2];
+      QuaternionToSet2[2] = quaternionR2C[3];
+
+      auto finalToSet = (QuaternionToSet2.inverse() * QuaternionToSet1);
+      Quarternions[0] = finalToSet[3];
+      Quarternions[1] = finalToSet[0];
+      Quarternions[2] = finalToSet[1];
+      Quarternions[3] = finalToSet[2];
+
+      PoseXf = 0; // as we don't have to take it from claron again...
+    }
+
+    if (!m_LastTrackerIdentifiedInRefSpace && (m_HandleForTrackerless.find(refHandle) != m_HandleForTrackerless.end()))
+    {
+      MTC(Marker_Marker2CameraXfGet(c, CurrCamera, PoseXf, &IdentifyingCamera));
+
+      auto itr = m_TrackerlessHandleLastValidData.find(refHandle);
+      if (itr != m_TrackerlessHandleLastValidData.end())
+      {
+        // note: claron quarternion has different order than the mitk quarternion
+        double quaternionT2C[4];
+        MTC(Xform3D_RotQuaternionsGet(PoseXf, quaternionT2C));
+        rotateYAxisNinetyDegree(quaternionT2C, quaternionT2C);
+
+        double quaternionR2C[4];
+        quaternionR2C[0] = itr->second.second[0];
+        quaternionR2C[1] = itr->second.second[1];
+        quaternionR2C[2] = itr->second.second[2];
+        quaternionR2C[3] = itr->second.second[3];
+        rotateYAxisNinetyDegree(quaternionR2C, quaternionR2C);
+
+        Xform3D_Free(r2c);
+
+        mitk::Quaternion QuaternionToSet1;
+        QuaternionToSet1[3] = quaternionT2C[0];
+        QuaternionToSet1[0] = quaternionT2C[1];
+        QuaternionToSet1[1] = quaternionT2C[2];
+        QuaternionToSet1[2] = quaternionT2C[3];
+
+        mitk::Quaternion QuaternionToSet2;
+        QuaternionToSet2[3] = quaternionR2C[0];
+        QuaternionToSet2[0] = quaternionR2C[1];
+        QuaternionToSet2[1] = quaternionR2C[2];
+        QuaternionToSet2[2] = quaternionR2C[3];
+
+        auto finalToSet = (QuaternionToSet2.inverse() * QuaternionToSet1);
+        Quarternions[0] = finalToSet[3];
+        Quarternions[1] = finalToSet[0];
+        Quarternions[2] = finalToSet[1];
+        Quarternions[3] = finalToSet[2];
+
+        m_LastTrackerIdentifiedInRefSpace = true;
+
+        PoseXf = 0; // as we don't have to take it from claron again...
+      }
+    }
+  }
+  else
+    MTC(Marker_Marker2CameraXfGet(c, CurrCamera, PoseXf, &IdentifyingCamera));
+
+  if (0 != PoseXf)
+    MTC(Xform3D_RotQuaternionsGet(PoseXf, Quarternions));
+
+  ////////////////////////////////////////////////////////////////////
+  // Below logic is for rotating Quaternion around axis
+  // Just for example
+  //
+  /*Quaternion Quaternion::create_from_axis_angle(const double &xx, const double &yy, const double &zz, const double &a)
+  {
+    // Here we calculate the sin( theta / 2) once for optimization
+    double factor = sin(a / 2.0);
+
+    // Calculate the x, y and z of the quaternion
+    double x = xx * factor;
+    double y = yy * factor;
+    double z = zz * factor;
+
+    // Calcualte the w value by cos( theta / 2 )
+    double w = cos(a / 2.0);
+
+    return Quaternion(x, y, z, w).normalize();
+  }*/
+
+  mitk::Quaternion finalQuaternionToSet;
+
+  if (m_LastTrackerIdentifiedInRefSpace && !m_ReferenceNotSet)
+  {
+    finalQuaternionToSet[3] = Quarternions[0];
+    finalQuaternionToSet[0] = Quarternions[1];
+    finalQuaternionToSet[1] = Quarternions[2];
+    finalQuaternionToSet[2] = Quarternions[3];
+  }
+  else
+  {
+    // Here we have to make a -90°-turn around the Y-axis because of a bug of the
+    // MTC-library.
+    double finalRes[4];
+    rotateYAxisNinetyDegree(Quarternions, finalRes);
+    finalQuaternionToSet[3] = finalRes[0];
+    finalQuaternionToSet[0] = finalRes[1];
+    finalQuaternionToSet[1] = finalRes[2];
+    finalQuaternionToSet[2] = finalRes[3];
+  }
+
+  returnValue.push_back(finalQuaternionToSet[3]);
+  returnValue.push_back(finalQuaternionToSet[0]);
+  returnValue.push_back(finalQuaternionToSet[1]);
+  returnValue.push_back(finalQuaternionToSet[2]);
 
   return returnValue;
 }
 
-
-
-const char* mitk::ClaronInterface::GetName(claronToolHandle c)
+std::string mitk::ClaronInterface::GetName(claronToolHandle c)
 {
-  char MarkerName[MT_MAX_STRING_LENGTH];
-  MTC( Marker_NameGet(c, MarkerName, MT_MAX_STRING_LENGTH, 0) );
-  std::string* returnValue = new std::string(MarkerName);
-  return returnValue->c_str();
+  // char MarkerName[MT_MAX_STRING_LENGTH];
+  // MTC(Marker_NameGet(c, MarkerName, MT_MAX_STRING_LENGTH, 0));
+  MTC(Marker_NameGet(c, &m_ClaronToolNameCache[0], MT_MAX_STRING_LENGTH, 0));
+  return m_ClaronToolNameCache;
 }
 
 bool mitk::ClaronInterface::IsTracking()
@@ -282,6 +790,38 @@ bool mitk::ClaronInterface::IsTracking()
 }
 
 bool mitk::ClaronInterface::IsMicronTrackerInstalled()
-  {
+{
   return true;
-  }
+}
+
+int mitk::ClaronInterface::GetToolThermalHazard()
+{
+  return ToolThermalHazard;
+}
+
+void mitk::ClaronInterface::SetToolThermalHazard(int thermal_hazard)
+{
+  ToolThermalHazard = thermal_hazard;
+}
+
+bool mitk::ClaronInterface::IsLastTrackerIdentifiedInRefSpace()
+{
+  return this->m_LastTrackerIdentifiedInRefSpace;
+}
+
+bool mitk::ClaronInterface::IsLastTrackerReferenceNotSet()
+{
+  return this->m_ReferenceNotSet;
+}
+
+void mitk::ClaronInterface::SetTrackerlessNavEnabledTracker(mtHandle trackerHandle, bool enable)
+{
+  if (0 == trackerHandle)
+    return;
+
+  if (enable)
+    m_HandleForTrackerless.insert(trackerHandle);
+  else
+    m_HandleForTrackerless.erase(trackerHandle);
+}
+// HRS_NAVIGATION_MODIFICATION ends

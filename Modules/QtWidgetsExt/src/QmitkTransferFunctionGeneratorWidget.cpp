@@ -351,3 +351,11 @@ void QmitkTransferFunctionGeneratorWidget::SetDataNode(mitk::DataNode *node)
     m_InfoPreset->setText(QString(""));
   }
 }
+
+
+// HRS_NAVIGATION_MODIFICATION starts
+double QmitkTransferFunctionGeneratorWidget::GetThresholdValue()
+{
+  return thPos;
+}
+// HRS_NAVIGATION_MODIFICATION ends

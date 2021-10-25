@@ -17,6 +17,9 @@ found in the LICENSE file.
 
 mitk::ClaronTool::ClaronTool() : TrackingTool()
 {
+  // HRS_NAVIGATION_MODIFICATION starts
+  m_ToolThermalHazard = 0;
+  // HRS_NAVIGATION_MODIFICATION ends
 }
 
 mitk::ClaronTool::~ClaronTool(void)
@@ -28,7 +31,10 @@ std::string mitk::ClaronTool::GetCalibrationName()
   return &m_CalibrationName[0];
 }
 
-void mitk::ClaronTool::SetCalibrationName(std::string name)
+// HRS_NAVIGATION_MODIFICATION starts
+// void mitk::ClaronTool::SetCalibrationName(std::string name)
+void mitk::ClaronTool::SetCalibrationName(const std::string& name)
+// HRS_NAVIGATION_MODIFICATION ends
 {
   this->m_CalibrationName=name;
 }
@@ -98,3 +104,15 @@ mitk::claronToolHandle mitk::ClaronTool::GetToolHandle()
 {
   return this->m_ToolHandle;
 }
+
+// HRS_NAVIGATION_MODIFICATION starts
+int mitk::ClaronTool::GetToolThermalHazard()
+{
+  return m_ToolThermalHazard;
+}
+
+void mitk::ClaronTool::SetToolThermalHazard(int thermal_hazard)
+{
+  m_ToolThermalHazard = thermal_hazard;
+}
+// HRS_NAVIGATION_MODIFICATION ends

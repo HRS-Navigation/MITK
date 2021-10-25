@@ -49,6 +49,10 @@ class MITKIGTUI_EXPORT QmitkInteractiveTransformationWidget : public QDialog
      */
     void SetToolToEdit(const mitk::NavigationTool::Pointer _tool);
 
+    // HRS_NAVIGATION_MODIFICATION starts
+    void SetGeometry(mitk::BaseGeometry::Pointer geometryToSet);
+    // HRS_NAVIGATION_MODIFICATION ends
+
     /** The sliders and spinboxes will be set to these values.
         When clicking "Revert Changes", sliders will be reseted to these values.
     */

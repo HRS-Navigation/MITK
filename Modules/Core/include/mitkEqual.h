@@ -71,11 +71,11 @@ namespace mitk
    * @param verbose Flag indicating detailed console output.
    * @return True if scalars are equal.
    */
-  inline bool Equal(ScalarType scalar1, ScalarType scalar2, ScalarType eps = mitk::eps, bool verbose = false)
+  inline bool Equal(ScalarType scalar1, ScalarType scalar2, ScalarType epsa = mitk::eps, bool verbose = false)
   {
-    bool isEqual(!DifferenceBiggerOrEqualEps(scalar1 - scalar2, eps));
+    bool isEqual(!DifferenceBiggerOrEqualEps(scalar1 - scalar2, epsa));
 
-    ConditionalOutputOfDifference(scalar1, scalar2, eps, verbose, isEqual);
+    ConditionalOutputOfDifference(scalar1, scalar2, epsa, verbose, isEqual);
 
     return isEqual;
   }

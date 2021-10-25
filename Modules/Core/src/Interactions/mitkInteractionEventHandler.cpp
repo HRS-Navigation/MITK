@@ -12,6 +12,9 @@ found in the LICENSE file.
 
 #include "mitkInteractionEventHandler.h"
 #include "mitkInteractionEvent.h"
+// HRS_NAVIGATION_MODIFICATION starts
+#include "usModuleRegistry.h"
+// HRS_NAVIGATION_MODIFICATION ends
 
 mitk::InteractionEventHandler::InteractionEventHandler() : m_EventConfig()
 {
@@ -34,6 +37,14 @@ bool mitk::InteractionEventHandler::SetEventConfig(const std::string &filename, 
   MITK_ERROR << "InteractionEventHandler: Failed to load EventConfiguration";
   return false;
 }
+
+// HRS_NAVIGATION_MODIFICATION starts
+bool mitk::InteractionEventHandler::SetEventConfig(const std::string &filename, const std::string &moduleName)
+{
+  auto module = us::ModuleRegistry::GetModule(moduleName);
+  return this->SetEventConfig(filename, module);
+}
+// HRS_NAVIGATION_MODIFICATION ends
 
 bool mitk::InteractionEventHandler::SetEventConfig(const EventConfig &config)
 {

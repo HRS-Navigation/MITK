@@ -380,6 +380,15 @@ void mitk::DisplayInteractor::SetCrosshair(mitk::StateMachineAction *, mitk::Int
   Point3D pos = positionEvent->GetPositionInWorld();
 
   const BaseRenderer::Pointer sender = interactionEvent->GetSender();
+
+  // HRS_NAVIGATION_MODIFICATION starts
+  auto sliceNavController = sender->GetSliceNavigationController();
+  if (sliceNavController &&
+      sliceNavController->GetSliceLocked()) // As we don't want to move slice even when we locked it
+    return;
+  // HRS_NAVIGATION_MODIFICATION ends
+
+
   auto renWindows = RenderingManager::GetInstance()->GetAllRegisteredRenderWindows();
   for (auto renWin : renWindows)
   {

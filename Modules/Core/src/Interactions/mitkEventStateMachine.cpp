@@ -19,6 +19,10 @@ found in the LICENSE file.
 #include "mitkStateMachineState.h"
 #include "mitkStateMachineTransition.h"
 #include "mitkUndoController.h"
+// HRS_NAVIGATION_MODIFICATION starts
+#include "usModuleRegistry.h"
+// HRS_NAVIGATION_MODIFICATION ends
+
 
 mitk::EventStateMachine::EventStateMachine()
   : m_IsActive(true),
@@ -80,6 +84,15 @@ bool mitk::EventStateMachine::LoadStateMachine(const std::string &filename, cons
     return false;
   }
 }
+
+// HRS_NAVIGATION_MODIFICATION starts
+bool mitk::EventStateMachine::LoadStateMachine(const std::string &filename, const std::string &moduleName)
+{
+  auto module = us::ModuleRegistry::GetModule(moduleName);
+  return this->LoadStateMachine(filename, module);
+}
+// HRS_NAVIGATION_MODIFICATION ends
+
 
 mitk::EventStateMachine::~EventStateMachine()
 {

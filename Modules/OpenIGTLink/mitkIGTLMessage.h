@@ -181,14 +181,14 @@ namespace mitk {
       *
       * @param rightHandSide An IGTLMessage to be compared
       * @param leftHandSide An IGTLMessage to be compared
-      * @param eps Tolarence for comparison. You can use mitk::eps in most cases.
+      * @param epsa Tolarence for comparison. You can use mitk::eps in most cases.
       * @param verbose Flag indicating if the user wants detailed console output
       * or not.
       * @return true, if all subsequent comparisons are true, false otherwise
       */
       MITKOPENIGTLINK_EXPORT bool Equal( const mitk::IGTLMessage& leftHandSide,
                                           const mitk::IGTLMessage& rightHandSide,
-                                          ScalarType eps = mitk::eps,
+                                          ScalarType epsa = mitk::eps,
                                           bool verbose = false );
 
 } // namespace mitk

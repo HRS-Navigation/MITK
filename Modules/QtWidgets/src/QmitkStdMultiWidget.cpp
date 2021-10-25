@@ -16,6 +16,10 @@ found in the LICENSE file.
 #include "QmitkRenderWindowWidget.h"
 
 // mitk core
+// HRS_NAVIGATION_MODIFICATION starts
+#include <mitkManualPlacementAnnotationRenderer.h>
+#include <mitkDisplayInteractor.h>
+// HRS_NAVIGATION_MODIFICATION ends
 #include <mitkCameraController.h>
 #include <mitkImage.h>
 #include <mitkImagePixelReadAccessor.h>
@@ -40,6 +44,9 @@ found in the LICENSE file.
 
 // vtk
 #include <vtkSmartPointer.h>
+// HRS_NAVIGATION_MODIFICATION starts
+#include <vtkCamera.h>
+// HRS_NAVIGATION_MODIFICATION ends
 
 // c++
 #include <iomanip>
@@ -51,11 +58,26 @@ QmitkStdMultiWidget::QmitkStdMultiWidget(QWidget *parent,
   , m_TimeNavigationController(nullptr)
   , m_PendingCrosshairPositionEvent(false)
 {
+// HRS_NAVIGATION_MODIFICATION starts
+  m_visual_mode = CRANIAL;                         // default
+  m_EnabledCrossHairMovementForMeasurement = true; // default
+// HRS_NAVIGATION_MODIFICATION ends
+
   m_TimeNavigationController = mitk::RenderingManager::GetInstance()->GetTimeNavigationController();
 }
 
 QmitkStdMultiWidget::~QmitkStdMultiWidget()
 {
+// HRS_NAVIGATION_MODIFICATION starts
+  // Removing annotations which are added...
+  for (auto annotation : m_Annotations)
+  {
+    if (annotation)
+      annotation->UnRegisterMicroservice();
+  }
+  m_Annotations.clear();
+// HRS_NAVIGATION_MODIFICATION ends
+
   m_TimeNavigationController->Disconnect(GetRenderWindow1()->GetSliceNavigationController());
   m_TimeNavigationController->Disconnect(GetRenderWindow2()->GetSliceNavigationController());
   m_TimeNavigationController->Disconnect(GetRenderWindow3()->GetSliceNavigationController());
@@ -148,6 +170,16 @@ void QmitkStdMultiWidget::SetSelectedPosition(const mitk::Point3D& newPosition, 
   GetRenderWindow2()->GetSliceNavigationController()->SelectSliceByPoint(newPosition);
   GetRenderWindow3()->GetSliceNavigationController()->SelectSliceByPoint(newPosition);
 
+// HRS_NAVIGATION_MODIFICATION starts
+    // determine if cross is now out of display
+  // if so, move the display window
+  auto selectedPosition = GetSelectedPosition("");
+  EnsureDisplayContainsPoint(GetRenderWindow1()->GetSliceNavigationController()->GetRenderer(), selectedPosition);
+  EnsureDisplayContainsPoint(GetRenderWindow2()->GetSliceNavigationController()->GetRenderer(), selectedPosition);
+  EnsureDisplayContainsPoint(GetRenderWindow3()->GetSliceNavigationController()->GetRenderer(), selectedPosition);
+  // HRS_NAVIGATION_MODIFICATION ends
+
+  // update displays
   RequestUpdateAll();
 }
 
@@ -219,18 +251,140 @@ bool QmitkStdMultiWidget::GetCrosshairVisibility() const
   return crosshairVisibility;
 }
 
+// HRS_NAVIGATION_MODIFICATION starts
 void QmitkStdMultiWidget::ResetCrosshair()
+{
+  //auto dataStorage = GetDataStorage();
+  //if (nullptr == dataStorage)
+  //{
+  //  return;
+  //}
+
+  //mitk::RenderingManager::GetInstance()->InitializeViewsByBoundingObjects(dataStorage);
+
+  //SetWidgetPlaneMode(mitk::InteractionSchemeSwitcher::MITKStandard);
+  ResetCrosshairZoomAware(true);
+}
+
+void QmitkStdMultiWidget::ResetCrosshairZoomAware(bool resetZoom /*= false*/)
 {
   auto dataStorage = GetDataStorage();
   if (nullptr == dataStorage)
-  {
     return;
+
+  {
+    int parallelProjection[3];
+    double parallelScaleOrViewAngle[3];
+
+    if (!resetZoom)
+    {
+      parallelProjection[0] =
+        this->GetRenderWindow1()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->GetParallelProjection();
+      parallelProjection[1] =
+        this->GetRenderWindow2()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->GetParallelProjection();
+      parallelProjection[2] =
+        this->GetRenderWindow3()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->GetParallelProjection();
+
+      if (parallelProjection[0])
+        parallelScaleOrViewAngle[0] =
+          this->GetRenderWindow1()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->GetParallelScale();
+      else
+        parallelScaleOrViewAngle[0] =
+          this->GetRenderWindow1()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->GetViewAngle();
+
+      if (parallelProjection[1])
+        parallelScaleOrViewAngle[1] =
+          this->GetRenderWindow2()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->GetParallelScale();
+      else
+        parallelScaleOrViewAngle[1] =
+          this->GetRenderWindow2()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->GetViewAngle();
+
+      if (parallelProjection[2])
+        parallelScaleOrViewAngle[2] =
+          this->GetRenderWindow3()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->GetParallelScale();
+      else
+        parallelScaleOrViewAngle[2] =
+          this->GetRenderWindow3()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->GetViewAngle();
+    }
+
+    // mitk::RenderingManager::GetInstance()->InitializeViewsByBoundingObjects(dataStorage);
+    // get all nodes that have not set "includeInBoundingBox" to false
+    mitk::NodePredicateNot::Pointer pred = mitk::NodePredicateNot::New(
+      mitk::NodePredicateProperty::New("includeInBoundingBox", mitk::BoolProperty::New(false)));
+
+    mitk::DataStorage::SetOfObjects::ConstPointer rs = dataStorage->GetSubset(pred);
+    // calculate bounding geometry of these nodes
+    auto bounds = dataStorage->ComputeBoundingGeometry3D(rs, "visible");
+
+    // initialize the views to the bounding geometry
+    mitk::RenderingManager::GetInstance()->InitializeViews(
+      bounds,
+      resetZoom ? mitk::RenderingManager::REQUEST_UPDATE_ALL : mitk::RenderingManager::REQUEST_UPDATE_2DWINDOWS);
+
+    if (m_visual_mode == CRANIAL) // left on right
+    {
+      if (resetZoom)
+        this->GetRenderWindow4()->GetRenderer()->GetCameraController()->SetViewToAnterior(); // 3D Front side
+      this->GetRenderWindow1()->GetSliceNavigationController()->Update();                    //  Origional Cranial mode
+                                                                                             // this->Fit();
+    }
+    else if (m_visual_mode == ENT) // Left on left
+    {
+      if (resetZoom)
+        this->GetRenderWindow4()->GetRenderer()->GetCameraController()->SetViewToAnterior(); // 3D front Side
+      this->GetRenderWindow1()->GetSliceNavigationController()->Update(
+        mitk::SliceNavigationController::Axial, false, true, true); // Axial left on left
+      this->GetRenderWindow3()->GetSliceNavigationController()->Update(
+        mitk::SliceNavigationController::Frontal, true, false, false); // coronal left on left
+                                                                       // this->Fit();
+    }
+    else if (m_visual_mode == SPINE) // Inverted Axial
+    {
+      if (resetZoom)
+        this->GetRenderWindow4()->GetRenderer()->GetCameraController()->SetViewToPosterior(); // 3D back Side
+      this->GetRenderWindow1()->GetSliceNavigationController()->Update(
+        mitk::SliceNavigationController::Axial, true, true, false); // Axial upside down
+                                                                    // this->Fit();
+    }
+    else if (m_visual_mode == SPINE_L2L) // Inverted Axial + Left on left
+    {
+      if (resetZoom)
+        this->GetRenderWindow4()->GetRenderer()->GetCameraController()->SetViewToPosterior(); // 3D back Side
+      this->GetRenderWindow1()->GetSliceNavigationController()->Update(
+        mitk::SliceNavigationController::Axial, true, false, false); // Axial upside down + left on left
+      this->GetRenderWindow3()->GetSliceNavigationController()->Update(
+        mitk::SliceNavigationController::Frontal, true, false, false); // left on left in Coronal
+                                                                       // this->Fit();
+    }
+    // reset interactor to normal slicing
+    this->SetWidgetPlaneMode(mitk::InteractionSchemeSwitcher::MITKStandard);
+
+    if (!resetZoom)
+    {
+      if (parallelProjection[0])
+        this->GetRenderWindow1()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->SetParallelScale(
+          parallelScaleOrViewAngle[0]);
+      else
+        this->GetRenderWindow1()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->SetViewAngle(
+          parallelScaleOrViewAngle[0]);
+
+      if (parallelProjection[1])
+        this->GetRenderWindow2()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->SetParallelScale(
+          parallelScaleOrViewAngle[1]);
+      else
+        this->GetRenderWindow2()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->SetViewAngle(
+          parallelScaleOrViewAngle[1]);
+
+      if (parallelProjection[2])
+        this->GetRenderWindow3()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->SetParallelScale(
+          parallelScaleOrViewAngle[2]);
+      else
+        this->GetRenderWindow3()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->SetViewAngle(
+          parallelScaleOrViewAngle[2]);
+    }
   }
-
-  mitk::RenderingManager::GetInstance()->InitializeViewsByBoundingObjects(dataStorage);
-
-  SetWidgetPlaneMode(mitk::InteractionSchemeSwitcher::MITKStandard);
 }
+// HRS_NAVIGATION_MODIFICATION ends
 
 void QmitkStdMultiWidget::SetWidgetPlaneMode(int userMode)
 {
@@ -821,3 +975,85 @@ void QmitkStdMultiWidget::CreateRenderWindowWidgets()
   connect(this, &QmitkStdMultiWidget::NotifyCrosshairVisibilityChanged, renderWindow4, &QmitkRenderWindow::UpdateCrosshairVisibility);
   connect(this, &QmitkStdMultiWidget::NotifyCrosshairRotationModeChanged, renderWindow4, &QmitkRenderWindow::UpdateCrosshairRotationMode);
 }
+
+// HRS_NAVIGATION_MODIFICATION starts
+int QmitkStdMultiWidget::GetVisualMode()
+{
+  return m_visual_mode;
+}
+
+void QmitkStdMultiWidget::SetVisualMode(int mode)
+{
+  m_visual_mode = mode;
+}
+
+
+void QmitkStdMultiWidget::DisableCrossHairMovementForMeasurement()
+{
+  // dont deactivate twice, else we will clutter the config list ...
+  if (m_EnabledCrossHairMovementForMeasurement == false)
+    return;
+
+  // As a legacy solution the display interaction of the new interaction framework is disabled here  to avoid conflicts
+  // with tools Note: this only affects InteractionEventObservers (formerly known as Listeners) all DataNode specific
+  // interaction will still be enabled
+  m_DisplayInteractorConfigs.clear();
+
+  auto eventObservers = us::GetModuleContext()->GetServiceReferences<mitk::InteractionEventObserver>();
+
+  for (const auto &eventObserver : eventObservers)
+  {
+    auto displayInteractor = dynamic_cast<mitk::DisplayInteractor *>(
+      us::GetModuleContext()->GetService<mitk::InteractionEventObserver>(eventObserver));
+
+    if (displayInteractor != nullptr)
+    {
+      // remember the original configuration
+      m_DisplayInteractorConfigs.insert(std::make_pair(eventObserver, displayInteractor->GetEventConfig()));
+      // here the alternative configuration is loaded
+      displayInteractor->SetEventConfig("DisplayConfigMITKLimited.xml");
+    }
+  }
+
+  m_EnabledCrossHairMovementForMeasurement = false;
+}
+
+void QmitkStdMultiWidget::EnableCrossHairMovementForMeasurement()
+{
+  // enable the crosshair navigation
+  // Re-enabling InteractionEventObservers that have been previously disabled for legacy handling of Tools
+  // in new interaction framework
+  for (const auto &displayInteractorConfig : m_DisplayInteractorConfigs)
+  {
+    if (displayInteractorConfig.first)
+    {
+      auto displayInteractor = static_cast<mitk::DisplayInteractor *>(
+        us::GetModuleContext()->GetService<mitk::InteractionEventObserver>(displayInteractorConfig.first));
+
+      if (displayInteractor != nullptr)
+      {
+        // here the regular configuration is loaded again
+        displayInteractor->SetEventConfig(displayInteractorConfig.second);
+      }
+    }
+  }
+
+  m_DisplayInteractorConfigs.clear();
+  m_EnabledCrossHairMovementForMeasurement = true;
+}
+
+void QmitkStdMultiWidget::AddAnnotation(mitk::Annotation::Pointer annotation, mitk::BaseRenderer::Pointer renderer)
+{
+  mitk::ManualPlacementAnnotationRenderer::AddAnnotation(annotation, renderer);
+  m_Annotations.insert(annotation);
+}
+
+void QmitkStdMultiWidget::RemoveAnnotation(mitk::Annotation::Pointer annotation)
+{
+  if (nullptr != annotation)
+  {
+    annotation->UnRegisterMicroservice();
+    m_Annotations.erase(annotation);
+  }
+}
+// HRS_NAVIGATION_MODIFICATION ends

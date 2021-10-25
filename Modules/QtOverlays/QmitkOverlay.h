@@ -61,7 +61,11 @@ public:
     middle_Right = 4,
     bottom_Left = 5,
     bottom_Center = 6,
-    bottom_Right = 7
+    // HRS_NAVIGATION_MODIFICATION starts
+    // bottom_Right = 7
+    bottom_Right = 7,
+    middle_Center = 8 // For showing something in center, not implemented here
+    // HRS_NAVIGATION_MODIFICATION ends
   };
 
   /**

@@ -779,7 +779,10 @@ void mitk::SlicedGeometry3D::ExecuteOperation(Operation *operation)
           // Clear the slice stack and adjust it according to the center of
           // rotation and plane position (see documentation of ReinitializePlanes)
           this->ReinitializePlanes(center, planeOp->GetPoint());
-          planeGeometry->SetSpacing(this->GetSpacing());
+          // HRS_NAVIGATION_MODIFICATION starts
+          // As this line is giving error in orienting view while orienting view in target view
+          //planeGeometry->SetSpacing(this->GetSpacing());
+          // HRS_NAVIGATION_MODIFICATION ends
 
           if (m_SliceNavigationController)
           {
@@ -824,7 +827,10 @@ void mitk::SlicedGeometry3D::ExecuteOperation(Operation *operation)
 
           // Apply changes on first slice to whole slice stack
           this->ReinitializePlanes(center, planeOp->GetPoint());
-          planeGeometry->SetSpacing(this->GetSpacing());
+          // HRS_NAVIGATION_MODIFICATION starts
+          // As this line is giving error in orienting view while orienting view in target view
+          // planeGeometry->SetSpacing(this->GetSpacing());
+          // HRS_NAVIGATION_MODIFICATION ends
 
           if (m_SliceNavigationController)
           {

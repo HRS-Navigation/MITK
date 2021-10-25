@@ -73,6 +73,14 @@ bool mitk::StateMachineContainer::LoadBehavior(const std::string &fileName, cons
   return this->Parse() && !m_errors;
 }
 
+// HRS_NAVIGATION_MODIFICATION starts
+bool mitk::StateMachineContainer::LoadBehavior(const std::string &fileName, const std::string &moduleName)
+{
+  auto module = us::ModuleRegistry::GetModule(moduleName);
+  return this->LoadBehavior(fileName, module);
+}
+// HRS_NAVIGATION_MODIFICATION ends
+
 mitk::StateMachineState::Pointer mitk::StateMachineContainer::GetStartState() const
 {
   return m_StartState;

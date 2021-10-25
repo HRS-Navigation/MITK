@@ -147,28 +147,28 @@ namespace mitk
    *
    * @param vector1 Vector to compare.
    * @param vector2 Vector to compare.
-   * @param eps Tolerance for floating point comparison.
+   * @param epsa Tolerance for floating point comparison.
    * @param verbose Flag indicating detailed console output.
    * @return True if vectors are equal.
    */
   template <typename TCoordRep, unsigned int NPointDimension>
   inline bool Equal(const itk::Vector<TCoordRep, NPointDimension> &vector1,
                     const itk::Vector<TCoordRep, NPointDimension> &vector2,
-                    TCoordRep eps = mitk::eps,
+                    TCoordRep epsa = mitk::eps,
                     bool verbose = false)
   {
     bool isEqual = true;
     typename itk::Vector<TCoordRep, NPointDimension>::VectorType diff = vector1 - vector2;
     for (unsigned int i = 0; i < NPointDimension; i++)
     {
-      if (DifferenceBiggerOrEqualEps(diff[i], eps))
+      if (DifferenceBiggerOrEqualEps(diff[i], epsa))
       {
         isEqual = false;
         break;
       }
     }
 
-    ConditionalOutputOfDifference(vector1, vector2, eps, verbose, isEqual);
+    ConditionalOutputOfDifference(vector1, vector2, epsa, verbose, isEqual);
 
     return isEqual;
   }
@@ -178,27 +178,27 @@ namespace mitk
    *
    * @param vector1 Vector to compare.
    * @param vector2 Vector to compare.
-   * @param eps Tolerance for floating point comparison.
+   * @param epsa Tolerance for floating point comparison.
    * @param verbose Flag indicating detailed console output.
    * @return True if vectors are equal.
    */
   inline bool Equal(const mitk::VnlVector &vector1,
                     const mitk::VnlVector &vector2,
-                    ScalarType eps = mitk::eps,
+                    ScalarType epsa = mitk::eps,
                     bool verbose = false)
   {
     bool isEqual = true;
     mitk::VnlVector diff = vector1 - vector2;
     for (unsigned int i = 0; i < diff.size(); i++)
     {
-      if (DifferenceBiggerOrEqualEps(diff[i], eps))
+      if (DifferenceBiggerOrEqualEps(diff[i], epsa))
       {
         isEqual = false;
         break;
       }
     }
 
-    ConditionalOutputOfDifference(vector1, vector2, eps, verbose, isEqual);
+    ConditionalOutputOfDifference(vector1, vector2, epsa, verbose, isEqual);
 
     return isEqual;
   }
@@ -208,28 +208,28 @@ namespace mitk
    *
    * @param vector1 Vector to compare.
    * @param vector2 Vector to compare.
-   * @param eps Tolerance for floating point comparison.
+   * @param epsa Tolerance for floating point comparison.
    * @param verbose Flag indicating detailed console output.
    * @return True if vectors are equal.
    */
   template <typename TCoordRep, unsigned int NPointDimension>
   inline bool Equal(const vnl_vector_fixed<TCoordRep, NPointDimension> &vector1,
                     const vnl_vector_fixed<TCoordRep, NPointDimension> &vector2,
-                    TCoordRep eps = mitk::eps,
+                    TCoordRep epsa = mitk::eps,
                     bool verbose = false)
   {
     vnl_vector_fixed<TCoordRep, NPointDimension> diff = vector1 - vector2;
     bool isEqual = true;
     for (unsigned int i = 0; i < diff.size(); i++)
     {
-      if (DifferenceBiggerOrEqualEps(diff[i], eps))
+      if (DifferenceBiggerOrEqualEps(diff[i], epsa))
       {
         isEqual = false;
         break;
       }
     }
 
-    ConditionalOutputOfDifference(vector1, vector2, eps, verbose, isEqual);
+    ConditionalOutputOfDifference(vector1, vector2, epsa, verbose, isEqual);
 
     return isEqual;
   }

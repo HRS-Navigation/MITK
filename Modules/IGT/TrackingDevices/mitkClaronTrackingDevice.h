@@ -114,6 +114,17 @@ namespace mitk
 
     // HRS_NAVIGATION_MODIFICATION starts
     void SetTrackerlessNavEnabledTracker(mtHandle trackerHandle, bool enable);
+
+    // Added by AmitRungta on 25-11-2021
+    // This function will set if we want to process in background or normal after tracking starts.
+    void fnSetProcessingInBackgroundThread(bool baProcessInBackgroundThread);
+    // This function will get the current state of the tracking and not the one actual desired. As there can be a case
+    // that we may have desired to change the state but its already tracking with an older state.
+    bool fnGetProcessingInBackgroundThread() ;
+
+    // Get and set the desired FPS.
+    void fnSetDesiredFps(int iaFps);
+    int fnGetDesiredFps() const { return m_iDesiredFps; };
     // HRS_NAVIGATION_MODIFICATION ends
 
   protected:
@@ -164,6 +175,12 @@ namespace mitk
     std::string m_CalibrationDir;
     /** \brief The directory where the tool calibration files can be found */
     std::string m_ToolfilesDir;
+
+
+    // HRS_NAVIGATION_MODIFICATION starts
+    int m_iDesiredDelayInMsForFps;
+    int m_iDesiredFps;
+    // HRS_NAVIGATION_MODIFICATION ends
   };
 }//mitk
 #endif /* MITKCLARONTRACKINGDEVICE_H_HEADER_INCLUDED_ */

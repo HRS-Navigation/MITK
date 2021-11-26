@@ -18,6 +18,8 @@ found in the LICENSE file.
 #include <mitkIGTHardwareException.h>
 #include <mitkNumericTypes.h>
 #include <string>
+#include <chrono>
+#include <thread>
 
 const double __OneDivideByRootTwo = (1.0 / (sqrt(2.0)));
 
@@ -29,6 +31,10 @@ mitk::ClaronInterface::ClaronInterface()
   sprintf(markerDir, "No marker dir set yet");
   m_LastTrackerIdentifiedInRefSpace = false;
   m_ReferenceNotSet = true;
+
+  // Added by AmitRungta on 26-11-2021 
+  m_bCurrentProcessingInBackgroundThread = true ;
+  m_bDesiredProcessingInBackgroundThread = true ;
 }
 
 mitk::ClaronInterface::~ClaronInterface() {}
@@ -49,7 +55,6 @@ void mitk::ClaronInterface::Initialize(std::string calibrationDir, std::string t
 bool mitk::ClaronInterface::StartTracking()
 {
   isTracking = false;
-
   try
   {
     MTC(Cameras_AttachAvailableCameras(calibrationDir)); // Connect to camera
@@ -63,23 +68,39 @@ bool mitk::ClaronInterface::StartTracking()
       MITK_ERROR << "More then one Camera found";
       return false;
     }
+
     // Step 1: initialize cameras
     MTC(Cameras_ItemGet(0, &CurrCamera)); // Obtain a handle to the first/only camera in the array
+
     // Step 2: Load the marker templates
     MTC(Markers_LoadTemplates(markerDir)); // Path to directory where the marker templates are
     MITK_INFO << "Loaded marker templates\n" << Markers_TemplatesCount();
-    MTC(Markers_BackGroundProcessSet(true));
-    MTC(XPoints_BackGroundProcessSet(true));
-    Markers_SmallerXPFootprintSet(false); // by default it was on.
-                                          // Step 3: Wait for 20 frames
-    for (int i = 0; i <= 20; i++)         // the first 20 frames are auto-adjustment frames, we ignore them
+
+    if (m_bDesiredProcessingInBackgroundThread)
     {
-      MTC(Markers_GetIdentifiedMarkersFromBackgroundThread(CurrCamera));
-      // MTC( Camera_GrabFrame(CurrCamera) ); //Grab a frame (all cameras together)
-      // MTC( Markers_ProcessFrame(CurrCamera) ); //Process the frame(s) to obtain measurements
+      MTC(Markers_BackGroundProcessSet(true));
+      MTC(XPoints_BackGroundProcessSet(true));
+    }
+    m_bCurrentProcessingInBackgroundThread = m_bDesiredProcessingInBackgroundThread;
+
+	Markers_SmallerXPFootprintSet(false); // by default it was on.
+
+
+    // Step 3: Wait for 20 frames
+    for (int i = 0; i < 20; i++) // the first 20 frames are auto-adjustment frames, we ignore them
+    {
+      Sleep(50); // Let it sleep for some time before getting new data.
+      if (fnGetProcessingInBackgroundThread())
+      {
+        MTC(Markers_GetIdentifiedMarkersFromBackgroundThread(CurrCamera));
+      }
+      else
+      {
+        GrabFrame();
+      }
     }
 
-    // We are changing it to false,
+	// We are changing it to false,
     // As it is auto equalizing image so image will look almost similar eveytime irrespective of light,
     // So we are unable to see where light is focusing and where it's dark
     // MTC(Cameras_HistogramEqualizeImagesSet(true)); // set the histogram equalizing
@@ -89,6 +110,14 @@ bool mitk::ClaronInterface::StartTracking()
     PoseXf = Xform3D_New();
 
     // now we are tracking...
+
+    /* MTHome is not in use. The following code has to be activated if you want to use MTHome!
+    //Initialize MTHome
+    if ( getMTHome (MTHome, sizeof(MTHome)) < 0 )
+    {
+    // No Environment
+    printf("MTHome environment variable is not set!\n");
+    }*/
   }
   catch (...)
   {
@@ -133,7 +162,7 @@ bool mitk::ClaronInterface::StopTracking()
 
 std::vector<mitk::claronToolHandle> mitk::ClaronInterface::GetAllActiveTools()
 {
-  // Set return value
+  // Set returnvalue
   std::vector<claronToolHandle> returnValue;
 
   // Here, MTC internally maintains the measurement results.
@@ -159,34 +188,38 @@ std::vector<mitk::claronToolHandle> mitk::ClaronInterface::GetAllActiveTools()
   //  stage
   // }
   //}
-  if (Markers_GetIdentifiedMarkersFromBackgroundThread(CurrCamera) != mtOK)
-  {
-    MTC(Markers_AutoAdjustShortCycleHdrExposureLockedMarkersSet(
-      false)); // To fix a bug in MTC library. If HDR is on & camera gets disconnected then when camera is reconnected
-    // driver expect HDR to on but in initialization HDR is off. Which results into frames freeze
-    MITK_INFO << "Camera Connection Problem " << MTLastErrorString();
-    mitkThrowException(mitk::IGTHardwareException) << "Camera Connection Problem."; // It will be handled at later stage
-  };
 
-  // Markers_GetIdentifiedMarkersFromBackgroundThread() locks the pose data buffer until a new pose data becomes
-  // available therefore calling Markers_IdentifiedMarkersGet() might take a few milliseconds until the data becomes
-  // ready. If you don't want to wait for the pose, Use Markers_IsBackgroundFrameProcessedGet() before calling
-  // Markers_IdentifiedMarkersGet() to find out if data is ready. Sometimes Markers_IdentifiedMarkersGet throws
-  // exception when data is not available. to avoid that following loop is being used.
-  bool backgroundFrameProcessed = false;
-  for (int i = 0; i < 300; i++)
+  if (fnGetProcessingInBackgroundThread())
   {
-    MTC(Markers_IsBackgroundFrameProcessedGet(&backgroundFrameProcessed));
-    if (backgroundFrameProcessed == true)
-      break;
-    else
-      Sleep(1);
+    if (Markers_GetIdentifiedMarkersFromBackgroundThread(CurrCamera) != mtOK)
+    {
+      MTC(Markers_AutoAdjustShortCycleHdrExposureLockedMarkersSet(
+        false)); // To fix a bug in MTC library. If HDR is on & camera gets disconnected then when camera is reconnected
+      // driver expect HDR to on but in initialization HDR is off. Which results into frames freeze
+      MITK_INFO << "Camera Connection Problem " << MTLastErrorString();
+		mitkThrowException(mitk::IGTHardwareException) << "Camera Connection Problem."; // It will be handled at later stage
+    };
+
+    // Markers_GetIdentifiedMarkersFromBackgroundThread() locks the pose data buffer until a new pose data becomes
+    // available therefore calling Markers_IdentifiedMarkersGet() might take a few milliseconds until the data becomes
+    // ready. If you don't want to wait for the pose, Use Markers_IsBackgroundFrameProcessedGet() before calling
+    // Markers_IdentifiedMarkersGet() to find out if data is ready. Sometimes Markers_IdentifiedMarkersGet throws
+    // exception when data is not available. to avoid that following loop is being used.
+    bool backgroundFrameProcessed = false;
+    for (int i = 0; i < 100; i++)
+    {
+      MTC(Markers_IsBackgroundFrameProcessedGet(&backgroundFrameProcessed));
+      if (backgroundFrameProcessed == true)
+        break;
+      else
+        Sleep(5);
+    }
+
+    if (!backgroundFrameProcessed)
+      return returnValue;
   }
 
-  if (!backgroundFrameProcessed)
-    return returnValue;
-
-  if (Markers_IdentifiedMarkersGet(NULL, IdentifiedMarkers) != mtOK)
+  if (Markers_IdentifiedMarkersGet(CurrCamera, IdentifiedMarkers) != mtOK)
   {
     MTC(Markers_AutoAdjustShortCycleHdrExposureLockedMarkersSet(
       false)); // To fix a bug in MTC library. If HDR is on & camera gets disconnected then when camera is reconnected
@@ -195,7 +228,8 @@ std::vector<mitk::claronToolHandle> mitk::ClaronInterface::GetAllActiveTools()
     mitkThrowException(mitk::IGTHardwareException) << "Camera Connection Problem."; // It will be handled at later stage
   }
 
-  // Now we iterate on the identified markers and add them to the return value
+
+  // Now we iterate on the identified markers and add them to the returnvalue
   for (int j = 1; j <= Collection_Count(IdentifiedMarkers); j++)
   {
     // Obtain the marker's handle, and use it to obtain the pose in the current camera's space
@@ -208,14 +242,27 @@ std::vector<mitk::claronToolHandle> mitk::ClaronInterface::GetAllActiveTools()
 
 void mitk::ClaronInterface::GrabFrame()
 {
-  Sleep(50); // to stop Frame grabbing errors. It seems fast calling to frame grab gives the error.
-  if (Camera_GrabFrame(CurrCamera) !=
-      mtOK) // Camera(s)_GrabFrame firsts gives frame grab error & then crashes when camera is powered off while running
+  if (!fnGetProcessingInBackgroundThread())
   {
-    mitkThrowException(mitk::IGTHardwareException)
-      << "Camera Connection Problem." << MTLastErrorString(); // It will be handled at later stage
+    static std::chrono::high_resolution_clock::time_point tLastTime = std::chrono::high_resolution_clock::now();
+    std::chrono::high_resolution_clock::time_point tCurTime = std::chrono::high_resolution_clock::now();
+    const auto timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(tCurTime - tLastTime).count();
+    if (timeDiff < 50)
+        std::this_thread::sleep_for(std::chrono::milliseconds(50 - timeDiff));
+
+    if (Cameras_GrabFrame(CurrCamera) != mtOK) // Camera(s)_GrabFrame firsts gives frame grab error & then crashes when
+                                              // camera is powered off while running
+    {
+      mitkThrowException(mitk::IGTHardwareException)
+        << "Camera Connection Problem." << MTLastErrorString(); // It will be handled at later stage
+    }
+    MTC(Markers_ProcessFrame(CurrCamera)); // Process the frame(s)
+
+    // Added by AmitRungta on 26-11-2021 for processing frames.
+    MTC(XPoints_ProcessFrame(CurrCamera)); // Process the frame(s)
+
+    tLastTime = std::chrono::high_resolution_clock::now();
   }
-  MTC(Markers_ProcessFrame(CurrCamera)); // Process the frame(s)
 }
 
 std::vector<double> mitk::ClaronInterface::GetTipPosition(mitk::claronToolHandle c)
@@ -778,8 +825,6 @@ std::vector<double> mitk::ClaronInterface::GetQuaternions(claronToolHandle c)
 
 std::string mitk::ClaronInterface::GetName(claronToolHandle c)
 {
-  // char MarkerName[MT_MAX_STRING_LENGTH];
-  // MTC(Marker_NameGet(c, MarkerName, MT_MAX_STRING_LENGTH, 0));
   MTC(Marker_NameGet(c, &m_ClaronToolNameCache[0], MT_MAX_STRING_LENGTH, 0));
   return m_ClaronToolNameCache;
 }

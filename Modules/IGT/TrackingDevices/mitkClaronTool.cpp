@@ -31,10 +31,7 @@ std::string mitk::ClaronTool::GetCalibrationName()
   return &m_CalibrationName[0];
 }
 
-// HRS_NAVIGATION_MODIFICATION starts
-// void mitk::ClaronTool::SetCalibrationName(std::string name)
-void mitk::ClaronTool::SetCalibrationName(const std::string& name)
-// HRS_NAVIGATION_MODIFICATION ends
+void mitk::ClaronTool::SetCalibrationName(std::string name)
 {
   this->m_CalibrationName=name;
 }

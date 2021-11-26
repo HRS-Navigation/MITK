@@ -30,7 +30,7 @@ found in the LICENSE file.
 #include <map>
 #include <utility>
 
-#ifdef _WIN64  //Defined for applications for Win64.
+#ifdef _WIN64 // Defined for applications for Win64.
 typedef long long mtHandle;
 #else
 typedef int mtHandle;
@@ -130,6 +130,14 @@ namespace mitk
     bool IsLastTrackerReferenceNotSet();
     void SetTrackerlessNavEnabledTracker(mtHandle trackerHandle, bool enable);
 
+    // Added by AmitRungta on 25-11-2021
+    // This function will set if we want to process in background or normal after tracking starts.
+    void fnSetProcessingInBackgroundThread(bool baProcessInBackgroundThread){ m_bDesiredProcessingInBackgroundThread = baProcessInBackgroundThread; };
+    // This function will get the current state of the tracking and not the one actual desired. As there can be a case that we may have
+    // desired to change the state but its already tracking with an older state.
+    bool fnGetProcessingInBackgroundThread() const { return m_bCurrentProcessingInBackgroundThread; };
+
+
   protected:
     /**
     * \brief standard constructor
@@ -165,10 +173,16 @@ namespace mitk
     std::map<mtHandle, std::pair<std::vector<double>, std::vector<double>>> m_TrackerlessHandleLastValidData;
     //------------------------------------------------
 
-	void rotateYAxisNinetyDegree(double quaternionWithFirstTheta[4], double *outQuaternionWithFirstTheta);
+    void rotateYAxisNinetyDegree(double quaternionWithFirstTheta[4], double *outQuaternionWithFirstTheta);
 
   private:
     std::string m_ClaronToolNameCache;
+
+
+protected:
+    // Added by AmitRungta on 25-11-2021 
+    bool m_bCurrentProcessingInBackgroundThread;
+    bool m_bDesiredProcessingInBackgroundThread;
   };
 }//mitk
 

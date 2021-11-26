@@ -20,6 +20,8 @@ found in the LICENSE file.
 #include <itkMutexLockHolder.h>
 #include <mitkIOUtil.h>
 #include <mitkMicronTrackerTypeInformation.h>
+#include <chrono>
+#include <thread>
 
 typedef itk::MutexLockHolder<itk::FastMutexLock> MutexLockHolder;
 
@@ -48,6 +50,8 @@ mitk::ClaronTrackingDevice::ClaronTrackingDevice(): mitk::TrackingDevice()
   }
   //##################################################################################################
   m_Device->Initialize(m_CalibrationDir, m_ToolfilesDir);
+
+  fnSetDesiredFps(20);
 }
 
 bool mitk::ClaronTrackingDevice::IsDeviceInstalled()
@@ -235,28 +239,19 @@ void mitk::ClaronTrackingDevice::TrackTools()
 
     while ((this->GetState() == Tracking) && (localStopTracking == false))
     {
-      // HRS_NAVIGATION_MODIFICATION starts
-      //this->GetDevice()->GrabFrame();
-      // HRS_NAVIGATION_MODIFICATION ends
+      std::chrono::high_resolution_clock::time_point tStartTime = std::chrono::high_resolution_clock::now();
+      this->GetDevice()->GrabFrame();
 
       std::vector<mitk::ClaronTool::Pointer> detectedTools = this->DetectTools();
       std::vector<mitk::ClaronTool::Pointer> allTools = this->GetAllTools();
       std::vector<mitk::ClaronTool::Pointer>::iterator itAllTools;
-
-      // HRS_NAVIGATION_MODIFICATION starts
-      //for (itAllTools = allTools.begin(); itAllTools != allTools.end(); itAllTools++)
-      for (itAllTools = allTools.begin(); itAllTools != allTools.end(); ++itAllTools)
-      // HRS_NAVIGATION_MODIFICATION ends
+      for(itAllTools = allTools.begin(); itAllTools != allTools.end(); itAllTools++)
       {
         mitk::ClaronTool::Pointer currentTool = *itAllTools;
         //test if current tool was detected
         std::vector<mitk::ClaronTool::Pointer>::iterator itDetectedTools;
         bool foundTool = false;
-
-        // HRS_NAVIGATION_MODIFICATION starts
-        // for(itDetectedTools = detectedTools.begin(); itDetectedTools != detectedTools.end(); itDetectedTools++)
-        for (itDetectedTools = detectedTools.begin(); itDetectedTools != detectedTools.end(); ++itDetectedTools)
-        // HRS_NAVIGATION_MODIFICATION ends
+        for(itDetectedTools = detectedTools.begin(); itDetectedTools != detectedTools.end(); itDetectedTools++)
         {
           mitk::ClaronTool::Pointer aktuDet = *itDetectedTools;
           std::string tempString(currentTool->GetCalibrationName());
@@ -274,7 +269,7 @@ void mitk::ClaronTrackingDevice::TrackTools()
         if (currentTool->GetToolHandle() != 0)
         {
           // HRS_NAVIGATION_MODIFICATION starts
-          //currentTool->SetDataValid(true);
+          // currentTool->SetDataValid(true);
           // HRS_NAVIGATION_MODIFICATION ends
           // get tip position of tool:
           std::vector<double> pos_vector = this->GetDevice()->GetTipPosition(currentTool->GetToolHandle());
@@ -283,13 +278,13 @@ void mitk::ClaronTrackingDevice::TrackTools()
           currentTool->SetToolThermalHazard(this->GetDevice()->GetToolThermalHazard());
           // HRS_NAVIGATION_MODIFICATION ends
 
-          //write tip position into tool:
+          // write tip position into tool:
           mitk::Point3D pos;
           pos[0] = pos_vector[0];
           pos[1] = pos_vector[1];
           pos[2] = pos_vector[2];
           currentTool->SetPosition(pos);
-          //get tip quaternion of tool
+          // get tip quaternion of tool
           std::vector<double> quat = this->GetDevice()->GetTipQuaternions(currentTool->GetToolHandle());
 
           // HRS_NAVIGATION_MODIFICATION starts
@@ -297,11 +292,11 @@ void mitk::ClaronTrackingDevice::TrackTools()
                                     this->GetDevice()->IsLastTrackerReferenceNotSet());
           // HRS_NAVIGATION_MODIFICATION ends
 
-          //write tip quaternion into tool
+          // write tip quaternion into tool
           mitk::Quaternion orientation(quat[1], quat[2], quat[3], quat[0]);
           currentTool->SetOrientation(orientation);
 
-          //TODO: read the timestamp data from the tracking device interface
+          // TODO: read the timestamp data from the tracking device interface
           currentTool->SetIGTTimeStamp(mitk::IGTTimeStamp::GetInstance()->GetElapsed());
         }
         else
@@ -313,6 +308,12 @@ void mitk::ClaronTrackingDevice::TrackTools()
           currentTool->SetDataValid(false);
         }
       }
+
+      // Added by AmitRungta on 26-11-2021  now lets wait till our desired FPS if required.
+      const auto timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - tStartTime).count();
+      if (timeDiff < m_iDesiredDelayInMsForFps)
+        std::this_thread::sleep_for(std::chrono::milliseconds(m_iDesiredDelayInMsForFps - timeDiff));
+
       /* Update the local copy of m_StopTracking */
       this->m_StopTrackingMutex->Lock();
       localStopTracking = m_StopTracking;
@@ -364,4 +365,31 @@ void mitk::ClaronTrackingDevice::SetTrackerlessNavEnabledTracker(mtHandle tracke
 {
   this->GetDevice()->SetTrackerlessNavEnabledTracker(trackerHandle, enable);
 }
+
+
+// Added by AmitRungta on 25-11-2021
+// This function will set if we want to process in background or normal after tracking starts.
+void mitk::ClaronTrackingDevice::fnSetProcessingInBackgroundThread(bool baProcessInBackgroundThread) {
+  this->GetDevice()->fnSetProcessingInBackgroundThread(baProcessInBackgroundThread);
+}
+
+
+// This function will get the current state of the tracking and not the one actual desired. As there can be a case
+// that we may have desired to change the state but its already tracking with an older state.
+bool mitk::ClaronTrackingDevice::fnGetProcessingInBackgroundThread() {
+  return this->GetDevice()->fnGetProcessingInBackgroundThread();
+}
+
+// Get and set the desired FPS.
+void mitk::ClaronTrackingDevice::fnSetDesiredFps(int iaFps)
+{
+  m_iDesiredFps = iaFps;
+  if (m_iDesiredFps < 1 || m_iDesiredFps > 20)
+    m_iDesiredFps = 20;
+
+  m_iDesiredDelayInMsForFps = 1000 / m_iDesiredFps;
+}
+
+
+
 // HRS_NAVIGATION_MODIFICATION ends

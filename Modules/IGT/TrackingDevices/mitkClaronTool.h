@@ -59,10 +59,7 @@ namespace mitk
     * \brief Sets the calibration name of the tool. Be careful, only use this method if you know what you are doing.
     * If you want to change the tool name use the method setToolName instead!
     */
-    // HRS_NAVIGATION_MODIFICATION starts
-    //void SetCalibrationName(std::string name);
-    void SetCalibrationName(const std::string &name);
-    // HRS_NAVIGATION_MODIFICATION ends
+    void SetCalibrationName(std::string name);
 
     /**
     * @return Returns the tool handle of the tool.

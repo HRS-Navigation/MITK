@@ -384,10 +384,12 @@ bool mitk::ClaronTrackingDevice::fnGetProcessingInBackgroundThread() {
 void mitk::ClaronTrackingDevice::fnSetDesiredFps(int iaFps)
 {
   m_iDesiredFps = iaFps;
-  if (m_iDesiredFps < 1 || m_iDesiredFps > 20)
-    m_iDesiredFps = 20;
+  if (m_iDesiredFps < 1 || m_iDesiredFps > 15)
+    m_iDesiredFps = 15;
 
   m_iDesiredDelayInMsForFps = 1000 / m_iDesiredFps;
+
+  this->GetDevice()->fnSetDesiredDelayInMsForFps(m_iDesiredDelayInMsForFps);
 }
 
 

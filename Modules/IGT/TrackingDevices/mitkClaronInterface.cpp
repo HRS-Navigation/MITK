@@ -85,6 +85,8 @@ bool mitk::ClaronInterface::StartTracking()
 
 	Markers_SmallerXPFootprintSet(false); // by default it was on.
 
+    m_tLastValidGrabTime = std::chrono::high_resolution_clock::now();
+    Camera_FramesGrabbedGet(CurrCamera, &m_iLastValidFrameGrab);
 
     // Step 3: Wait for 20 frames
     for (int i = 0; i < 20; i++) // the first 20 frames are auto-adjustment frames, we ignore them
@@ -242,26 +244,64 @@ std::vector<mitk::claronToolHandle> mitk::ClaronInterface::GetAllActiveTools()
 
 void mitk::ClaronInterface::GrabFrame()
 {
+  const int niMaxTimeForCameraErrorInMs = 15000;// if wait is more than 15 sec then mark as camera disconnected...
+  std::chrono::high_resolution_clock::time_point tCurTime = std::chrono::high_resolution_clock::now();
+
   if (!fnGetProcessingInBackgroundThread())
   {
-    static std::chrono::high_resolution_clock::time_point tLastTime = std::chrono::high_resolution_clock::now();
-    std::chrono::high_resolution_clock::time_point tCurTime = std::chrono::high_resolution_clock::now();
+    static std::chrono::high_resolution_clock::time_point tLastTime = tCurTime;
+    
     const auto timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(tCurTime - tLastTime).count();
-    if (timeDiff < 50)
-        std::this_thread::sleep_for(std::chrono::milliseconds(50 - timeDiff));
+    if (timeDiff < m_iDesiredDelayInMsForFps)
+      std::this_thread::sleep_for(std::chrono::milliseconds(m_iDesiredDelayInMsForFps - timeDiff));
 
-    if (Cameras_GrabFrame(CurrCamera) != mtOK) // Camera(s)_GrabFrame firsts gives frame grab error & then crashes when
-                                              // camera is powered off while running
+    const auto nuiRetVal = Camera_GrabFrame(CurrCamera);
+    std::string clLastError = MTLastErrorString();
+
+    if (nuiRetVal != mtOK)
     {
-      mitkThrowException(mitk::IGTHardwareException)
-        << "Camera Connection Problem." << MTLastErrorString(); // It will be handled at later stage
+      const auto LastValidtimeDiff =
+        std::chrono::duration_cast<std::chrono::milliseconds>(tCurTime - m_tLastValidGrabTime).count();
+      if (LastValidtimeDiff > niMaxTimeForCameraErrorInMs) // if wait is more than 15 sec then mark as camera disconnected...
+      {
+        mitkThrowException(mitk::IGTHardwareException)
+          << "Camera Connection Problem." << clLastError.c_str(); // It will be handled at later stage
+      }
     }
+    else
+    {
+      m_tLastValidGrabTime = std::chrono::high_resolution_clock::now();
+    }
+
     MTC(Markers_ProcessFrame(CurrCamera)); // Process the frame(s)
 
     // Added by AmitRungta on 26-11-2021 for processing frames.
     MTC(XPoints_ProcessFrame(CurrCamera)); // Process the frame(s)
 
     tLastTime = std::chrono::high_resolution_clock::now();
+  }
+  else
+  {
+    // Added by AmitRungta on 01-12-2021 
+    // as now we want to break even in case of background thread processing if the images are not changed for a long time.
+    int iCurrentFrameGrab = 0; 
+    Camera_FramesGrabbedGet(CurrCamera, &iCurrentFrameGrab);
+    if (iCurrentFrameGrab > m_iLastValidFrameGrab)
+    {
+      m_iLastValidFrameGrab = iCurrentFrameGrab;
+      m_tLastValidGrabTime = std::chrono::high_resolution_clock::now();
+    }
+    else
+    {
+      const auto LastValidtimeDiff =
+        std::chrono::duration_cast<std::chrono::milliseconds>(tCurTime - m_tLastValidGrabTime).count();
+      if (LastValidtimeDiff >
+          niMaxTimeForCameraErrorInMs) // if wait is more than 15 sec then mark as camera disconnected...
+      {
+        mitkThrowException(mitk::IGTHardwareException)
+          << "Camera Connection Problem." << "Unable to grab new frames..."; // It will be handled at later stage
+      }
+    }
   }
 }
 

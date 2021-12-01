@@ -29,6 +29,7 @@ found in the LICENSE file.
 #include <set>
 #include <map>
 #include <utility>
+#include <chrono>
 
 #ifdef _WIN64 // Defined for applications for Win64.
 typedef long long mtHandle;
@@ -137,6 +138,10 @@ namespace mitk
     // desired to change the state but its already tracking with an older state.
     bool fnGetProcessingInBackgroundThread() const { return m_bCurrentProcessingInBackgroundThread; };
 
+    void fnSetDesiredDelayInMsForFps(int iaDesiredDelayInMsForFps)
+    {
+      m_iDesiredDelayInMsForFps = iaDesiredDelayInMsForFps;
+    };
 
   protected:
     /**
@@ -183,6 +188,9 @@ protected:
     // Added by AmitRungta on 25-11-2021 
     bool m_bCurrentProcessingInBackgroundThread;
     bool m_bDesiredProcessingInBackgroundThread;
+    int m_iDesiredDelayInMsForFps;
+    std::chrono::high_resolution_clock::time_point m_tLastValidGrabTime;        // this will contain the time for the last valid reading....
+    int m_iLastValidFrameGrab;
   };
 }//mitk
 

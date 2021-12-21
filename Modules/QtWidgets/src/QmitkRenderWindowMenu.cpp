@@ -16,6 +16,13 @@ found in the LICENSE file.
 #include "mitkProperties.h"
 #include "mitkResliceMethodProperty.h"
 
+// HRS_NAVIGATION_MODIFICATION starts
+#include "QmitkRenderWindow.h"
+#include "QmitkRenderWindowWidget.h"
+#include "QmitkAbstractMultiWidget.h"
+// HRS_NAVIGATION_MODIFICATION ends
+
+
 // qt
 #include <QHBoxLayout>
 #include <QPainter>
@@ -165,6 +172,72 @@ void QmitkRenderWindowMenu::UpdateLayoutDesignList(LayoutDesign layoutDesign)
     break;
   }
   }
+
+  // HRS_NAVIGATION_MODIFICATION starts
+  // Added by AmitRungta on 17-12-2021 Here we will update the menu ID as per the current state of the window.
+  // Like if this is the only big one then donot show the remove this or if this is the 3D one then donot show 
+  // related to 3D
+  if (LayoutDesign::ONE_BIG == m_LayoutDesign)
+    m_RemoveOneLayoutAction->setEnabled(false);
+
+  QmitkRenderWindow *clpRenderWindow = dynamic_cast<QmitkRenderWindow *>(m_Parent);
+  if (clpRenderWindow)
+  {
+    // Check if this is the 3D window then do not allow this and 3D related menu items.
+    {
+      if (mitk::BaseRenderer::Standard3D == clpRenderWindow->GetRenderer()->GetMapperID())
+      {
+        m_OneTop3DBottomLayoutAction->setEnabled(false);
+        m_OneLeft3DRightLayoutAction->setEnabled(false);
+      }
+    }
+
+    // Check if this is the only visible window then do not give Remove this option.
+    // We need to check this options if this is not a standard layout and has been
+    // updated once we have removed a screen using "remove this" option. When this option
+    // is called our layout state will ne None as its not a standard layout configuration.
+    if (LayoutDesign::NONE == m_LayoutDesign)
+    {
+      QObject *clpParent = clpRenderWindow->parent();
+      QmitkAbstractMultiWidget *clpMultiWidget = nullptr;
+      while (clpParent && !clpMultiWidget)
+      {
+        clpMultiWidget = dynamic_cast<QmitkAbstractMultiWidget *>(clpParent);
+        clpParent = clpParent->parent();
+      }
+
+      if (clpMultiWidget)
+      {
+        bool bOtherWidgetVisible = false;
+        const int niRow = clpMultiWidget->GetRowCount();
+        const int niCol = clpMultiWidget->GetColumnCount();
+
+        for (int iI = 0; iI < niRow; iI++)
+        {
+          for (int iJ = 0; iJ < niCol; iJ++)
+          {
+            auto clpCurWindow = clpMultiWidget->GetRenderWindow(iI, iJ);
+            if (!clpCurWindow || clpCurWindow == clpRenderWindow)
+              continue;
+
+            auto clpRenderWindowWidgetPointer = clpMultiWidget->GetRenderWindowWidget(clpCurWindow);
+            if (clpRenderWindowWidgetPointer && clpRenderWindowWidgetPointer->isVisible())
+            {
+              bOtherWidgetVisible = true;
+              break;
+            }
+          }
+
+          if (bOtherWidgetVisible)
+            break;
+        }
+
+        if (!bOtherWidgetVisible)
+          m_RemoveOneLayoutAction->setEnabled(false);
+      }
+    }
+  }
+  // HRS_NAVIGATION_MODIFICATION ends
 }
 
 void QmitkRenderWindowMenu::UpdateCrosshairVisibility(bool visible)

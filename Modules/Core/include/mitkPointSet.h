@@ -260,6 +260,12 @@ namespace mitk
      */
     int SearchPoint(Point3D point, ScalarType distance, int t = 0) const;
 
+    // HRS_NAVIGATION_MODIFICATION starts
+    // This function will give us the list of all the points which are in range of distance tolerance 
+    std::vector<int> SearchPointList(Point3D point, ScalarType distance, int t = 0) const;
+    // HRS_NAVIGATION_MODIFICATION ends
+
+
     bool IsEmptyTimeStep(unsigned int t) const override;
 
     // virtual methods, that need to be implemented

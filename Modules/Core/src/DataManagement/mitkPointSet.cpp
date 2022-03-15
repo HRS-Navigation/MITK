@@ -241,6 +241,69 @@ int mitk::PointSet::SearchPoint(Point3D point, ScalarType distance, int t) const
   return bestIndex;
 }
 
+
+
+
+
+// HRS_NAVIGATION_MODIFICATION starts
+// This function will give us the list of all the points which are in range of distance tolerance
+std::vector<int> mitk::PointSet::SearchPointList(Point3D point, ScalarType distance, int t) const
+{
+  std::vector<int> clFoundEntries;
+  if (t >= (int)m_PointSetSeries.size())
+  {
+    return clFoundEntries;
+  }
+
+  // Out is the point which is checked to be the searched point
+  PointType out;
+  out.Fill(0);
+  PointType indexPoint;
+
+  this->GetGeometry(t)->WorldToIndex(point, indexPoint);
+
+  // Searching the first point in the Set, that is +- distance far away fro
+  // the given point
+  unsigned int i;
+  PointsContainer::Iterator it, end;
+  end = m_PointSetSeries[t]->GetPoints()->End();
+  distance = distance * distance;
+
+  // To correct errors from converting index to world and world to index
+  if (distance == 0.0)
+  {
+    distance = 0.000001;
+  }
+
+  for (it = m_PointSetSeries[t]->GetPoints()->Begin(), i = 0; it != end; ++it, ++i)
+  {
+    bool ok = m_PointSetSeries[t]->GetPoints()->GetElementIfIndexExists(it->Index(), &out);
+
+    if (!ok)
+    {
+      return clFoundEntries;
+    }
+
+    // distance calculation
+    ScalarType dist, tmp;
+    tmp = out[0] - indexPoint[0];
+    dist = tmp * tmp;
+    tmp = out[1] - indexPoint[1];
+    dist += tmp * tmp;
+    tmp = out[2] - indexPoint[2];
+    dist += tmp * tmp;
+
+    if (dist <= distance)
+    {
+      clFoundEntries.push_back(it->Index());
+    }
+  }
+  return clFoundEntries;
+}
+// HRS_NAVIGATION_MODIFICATION ends
+
+
+
 mitk::PointSet::PointType mitk::PointSet::GetPoint(PointIdentifier id, int t) const
 {
   PointType out;

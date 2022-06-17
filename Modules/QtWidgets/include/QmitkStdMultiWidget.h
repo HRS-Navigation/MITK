@@ -102,11 +102,21 @@ public:
 
 
 // HRS_NAVIGATION_MODIFICATION starts
-  /// Returns the Visual mode set for the application. Like Cranial, ENT, Spine
-  int GetVisualMode();
+   
+  void fnSet3DViewToAnterior(bool baSet, bool baResetView = true );
+  bool fnGet3DViewToAnterior() { return m_b3DViewToAnterior; }
 
-  /// Sets the visual mode.
-  void SetVisualMode(int mode);
+  // In these we are assuming that if we have XYZ Coordinates, then ( Basically we can say that bottom left corner is the Origin)
+  // X is increasing Left of Screen to Right of Screen
+  // Y is increasing Bottom of Screen to Top of Screen
+  void fnSetMoveFootToHead(bool baSet, bool baResetView = true);
+  bool fnGetMoveFootToHead() { return m_bMoveFootToHead; }
+
+  void fnSetMoveLeftToRight(bool baSet, bool baResetView = true);
+  bool fnGetMoveLeftToRight() { return m_bMoveLeftToRight; }
+
+  void fnSetMoveAnteriorToPosterior(bool baSet, bool baResetView = true);
+  bool fnGetMoveAnteriorToPosterior() { return m_bMoveAnteriorToPosterior; }
 
   void DisableCrossHairMovementForMeasurement();
 
@@ -185,23 +195,11 @@ private:
 
 
 // HRS_NAVIGATION_MODIFICATION starts
-public:
-
-  // Cranial = Default left to right,
-  // ENT     = Left on Left
-  // Spine   = Axial Upside Down Left to right match
-  // Spine_L2L= Axial Upside Down, Left to Left match
-
-  enum
-  {
-    CRANIAL,
-    ENT,
-    SPINE,
-    SPINE_L2L
-  };
-
 protected:
-  int m_visual_mode;
+  bool m_b3DViewToAnterior = true;          // Wherther Anterior is show or Posterior is shown first
+  bool m_bMoveFootToHead = true;            // This will show head at top os screen
+  bool m_bMoveLeftToRight = false;          // This will show Right portion of Body to Left Side
+  bool m_bMoveAnteriorToPosterior = false;  // THis will show Nose at Bottom of the screen.
 
   // This parameters are for enabling/disabling crosshair while performing drawign for measurement...
   bool m_EnabledCrossHairMovementForMeasurement;

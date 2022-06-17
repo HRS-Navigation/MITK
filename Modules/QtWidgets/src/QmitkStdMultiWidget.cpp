@@ -59,9 +59,12 @@ QmitkStdMultiWidget::QmitkStdMultiWidget(QWidget *parent,
   , m_PendingCrosshairPositionEvent(false)
 {
 // HRS_NAVIGATION_MODIFICATION starts
-  m_visual_mode = CRANIAL;                         // default
+  m_b3DViewToAnterior = true;                 // Wherther Anterior is show or Posterior is shown first
+  m_bMoveFootToHead = true;                   // This will show head at top os screen
+  m_bMoveLeftToRight = false;                 // This will show Right portion of Body to Left Side
+  m_bMoveAnteriorToPosterior = false;         // THis will show Nose at top of the screen.
   m_EnabledCrossHairMovementForMeasurement = true; // default
-// HRS_NAVIGATION_MODIFICATION ends
+                                                   // HRS_NAVIGATION_MODIFICATION ends
 
   m_TimeNavigationController = mitk::RenderingManager::GetInstance()->GetTimeNavigationController();
 }
@@ -321,41 +324,139 @@ void QmitkStdMultiWidget::ResetCrosshairZoomAware(bool resetZoom /*= false*/)
       bounds,
       resetZoom ? mitk::RenderingManager::REQUEST_UPDATE_ALL : mitk::RenderingManager::REQUEST_UPDATE_2DWINDOWS);
 
-    if (m_visual_mode == CRANIAL) // left on right
+    if (resetZoom)
     {
-      if (resetZoom)
+      if (m_b3DViewToAnterior)
         this->GetRenderWindow4()->GetRenderer()->GetCameraController()->SetViewToAnterior(); // 3D Front side
-      this->GetRenderWindow1()->GetSliceNavigationController()->Update();                    //  Origional Cranial mode
-                                                                                             // this->Fit();
-    }
-    else if (m_visual_mode == ENT) // Left on left
-    {
-      if (resetZoom)
-        this->GetRenderWindow4()->GetRenderer()->GetCameraController()->SetViewToAnterior(); // 3D front Side
-      this->GetRenderWindow1()->GetSliceNavigationController()->Update(
-        mitk::SliceNavigationController::Axial, false, true, true); // Axial left on left
-      this->GetRenderWindow3()->GetSliceNavigationController()->Update(
-        mitk::SliceNavigationController::Frontal, true, false, false); // coronal left on left
-                                                                       // this->Fit();
-    }
-    else if (m_visual_mode == SPINE) // Inverted Axial
-    {
-      if (resetZoom)
+      else
         this->GetRenderWindow4()->GetRenderer()->GetCameraController()->SetViewToPosterior(); // 3D back Side
-      this->GetRenderWindow1()->GetSliceNavigationController()->Update(
-        mitk::SliceNavigationController::Axial, true, true, false); // Axial upside down
-                                                                    // this->Fit();
     }
-    else if (m_visual_mode == SPINE_L2L) // Inverted Axial + Left on left
+
+    // Now lets update the settings for each of the individual Render window controllers.
     {
-      if (resetZoom)
-        this->GetRenderWindow4()->GetRenderer()->GetCameraController()->SetViewToPosterior(); // 3D back Side
-      this->GetRenderWindow1()->GetSliceNavigationController()->Update(
-        mitk::SliceNavigationController::Axial, true, false, false); // Axial upside down + left on left
-      this->GetRenderWindow3()->GetSliceNavigationController()->Update(
-        mitk::SliceNavigationController::Frontal, true, false, false); // left on left in Coronal
-                                                                       // this->Fit();
+      // Axial View.
+      {
+        bool top = false, frontside = false, rotated = true;
+        top = !m_bMoveFootToHead;
+        if (m_bMoveLeftToRight)
+        {
+          // Patient Left is on the Left side of Screen.
+          if (m_bMoveAnteriorToPosterior)
+          {
+            // Nose is at the bottom of screen
+            frontside = false;
+            rotated = false;
+          }
+          else
+          {
+            // Nose is at the top of screen
+            frontside = true;
+            rotated = true;
+          }
+        }
+        else
+        {
+          // Patient Left is on the Right side of Screen.
+          if (m_bMoveAnteriorToPosterior)
+          {
+            // Nose is at the bottom of screen
+            frontside = true;
+            rotated = false;
+          }
+          else
+          {
+            // Nose is at the top of screen
+            frontside = false;
+            rotated = true;
+          }
+        }
+        this->GetRenderWindow1()->GetSliceNavigationController()->Update(
+          mitk::SliceNavigationController::Axial, top, frontside, rotated);
+      }
+
+      // Sagittial View.
+      {
+        bool top = true, frontside = true, rotated = false;
+        top = m_bMoveLeftToRight;
+        if (m_bMoveAnteriorToPosterior)
+        {
+          // Patient Nose is on the Left side of Screen.
+          if (m_bMoveFootToHead)
+          {
+            // Foot is at the bottom of screen
+            frontside = true;
+            rotated = false;
+          }
+          else
+          {
+            // Foot is at the top of screen
+            frontside = false;
+            rotated = true;
+          }
+        }
+        else
+        {
+          // Patient Nose is on the Right side of Screen.
+          if (m_bMoveFootToHead)
+          {
+            // Foot is at the bottom of screen
+            frontside = false;
+            rotated = false;
+          }
+          else
+          {
+            // Foot is at the top of screen
+            frontside = true;
+            rotated = true;
+          }
+        }
+        this->GetRenderWindow2()->GetSliceNavigationController()->Update(
+          mitk::SliceNavigationController::Sagittal, top, frontside, rotated);
+      }
+
+
+      // Coronial View.
+      {
+        bool top = true, frontside = true, rotated = false;
+        top = !m_bMoveAnteriorToPosterior;
+        if (m_bMoveLeftToRight)
+        {
+          // Patient Left is on the Left side of Screen.
+          if (m_bMoveFootToHead)
+          {
+            // Foot is at the bottom of screen
+            frontside = false;
+            rotated = false;
+          }
+          else
+          {
+            // Foot is at the top of screen
+            frontside = true;
+            rotated = true;
+          }
+        }
+        else
+        {
+          // Patient Left is on the Right side of Screen.
+          if (m_bMoveFootToHead)
+          {
+            // Foot is at the bottom of screen
+            frontside = true;
+            rotated = false;
+          }
+          else
+          {
+            // Foot is at the top of screen
+            frontside = false;
+            rotated = true;
+          }
+        }
+        this->GetRenderWindow3()->GetSliceNavigationController()->Update(
+          mitk::SliceNavigationController::Frontal, top, frontside, rotated);
+      }
     }
+
+
     // reset interactor to normal slicing
     this->SetWidgetPlaneMode(mitk::InteractionSchemeSwitcher::MITKStandard);
 
@@ -977,14 +1078,32 @@ void QmitkStdMultiWidget::CreateRenderWindowWidgets()
 }
 
 // HRS_NAVIGATION_MODIFICATION starts
-int QmitkStdMultiWidget::GetVisualMode()
+void QmitkStdMultiWidget::fnSet3DViewToAnterior(bool baSet, bool baResetView) 
 {
-  return m_visual_mode;
+  m_b3DViewToAnterior = baSet;
+  if (baResetView)
+    ResetCrosshairZoomAware();
 }
 
-void QmitkStdMultiWidget::SetVisualMode(int mode)
+void QmitkStdMultiWidget::fnSetMoveFootToHead(bool baSet, bool baResetView)
 {
-  m_visual_mode = mode;
+  m_bMoveFootToHead = baSet;
+  if (baResetView)
+    ResetCrosshairZoomAware();
+}
+
+void QmitkStdMultiWidget::fnSetMoveLeftToRight(bool baSet, bool baResetView)
+{
+  m_bMoveLeftToRight = baSet;
+  if (baResetView)
+    ResetCrosshairZoomAware();
+}
+
+void QmitkStdMultiWidget::fnSetMoveAnteriorToPosterior(bool baSet, bool baResetView)
+{
+  m_bMoveAnteriorToPosterior = baSet;
+  if (baResetView)
+    ResetCrosshairZoomAware();
 }
 
 

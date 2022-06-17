@@ -54,6 +54,9 @@ public:
   /** \brief enumeration of all possible display positions  */
   enum DisplayPosition
   {
+    // HRS_NAVIGATION_MODIFICATION starts
+    position_invalid = -1,
+    // HRS_NAVIGATION_MODIFICATION ends
     top_Left = 0,
     top_Center = 1,
     top_Right = 2,
@@ -101,6 +104,11 @@ public:
   virtual QWidget *GetWidget();
 
   virtual QSize GetNeededSize() = 0;
+
+  // HRS_NAVIGATION_MODIFICATION starts
+  virtual const char *fnGetId() { return m_Id; }
+  // HRS_NAVIGATION_MODIFICATION ends
+
 
 protected:
   /**

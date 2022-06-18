@@ -109,14 +109,22 @@ public:
   // In these we are assuming that if we have XYZ Coordinates, then ( Basically we can say that bottom left corner is the Origin)
   // X is increasing Left of Screen to Right of Screen
   // Y is increasing Bottom of Screen to Top of Screen
-  void fnSetMoveFootToHead(bool baSet, bool baResetView = true);
-  bool fnGetMoveFootToHead() { return m_bMoveFootToHead; }
+  void fnSetMoveFootToHead(mitk::BaseRenderer::ViewDirection enmaViewDirection, bool baSet, bool baResetView = true);
+  bool fnGetMoveFootToHead(mitk::BaseRenderer::ViewDirection enmaViewDirection);
 
-  void fnSetMoveLeftToRight(bool baSet, bool baResetView = true);
-  bool fnGetMoveLeftToRight() { return m_bMoveLeftToRight; }
+  void fnSetMoveLeftToRight(mitk::BaseRenderer::ViewDirection enmaViewDirection, bool baSet, bool baResetView = true);
+  bool fnGetMoveLeftToRight(mitk::BaseRenderer::ViewDirection enmaViewDirection);
 
-  void fnSetMoveAnteriorToPosterior(bool baSet, bool baResetView = true);
-  bool fnGetMoveAnteriorToPosterior() { return m_bMoveAnteriorToPosterior; }
+  void fnSetMoveAnteriorToPosterior(mitk::BaseRenderer::ViewDirection enmaViewDirection, bool baSet, bool baResetView = true);
+  bool fnGetMoveAnteriorToPosterior(mitk::BaseRenderer::ViewDirection enmaViewDirection);
+
+  void fnSetMoveDirections(mitk::BaseRenderer::ViewDirection enmaViewDirection,
+                           bool baMoveFootToHead,
+                           bool baMoveLeftToRight,
+                           bool baMoveAnteriorToPosterior,
+                           bool baResetView = true);
+
+
 
   void DisableCrossHairMovementForMeasurement();
 
@@ -163,10 +171,27 @@ Q_SIGNALS:
 
 private:
 
+  struct MoveDirection
+  {
+    bool m_bMoveFootToHead = true;           // This will show head at top os screen
+    bool m_bMoveLeftToRight = false;         // This will show Right portion of Body to Left Side
+    bool m_bMoveAnteriorToPosterior = false; // THis will show Nose at Bottom of the screen.
+
+    MoveDirection(bool baMoveFootToHead = true, bool baMoveLeftToRight = false, bool baMoveAnteriorToPosterior = false)
+    {
+      m_bMoveFootToHead = baMoveFootToHead;
+      m_bMoveLeftToRight = baMoveLeftToRight;
+      m_bMoveAnteriorToPosterior = baMoveAnteriorToPosterior;
+    }
+  };
+
+
   virtual void SetLayoutImpl() override;
   virtual void SetInteractionSchemeImpl() override { }
 
   void CreateRenderWindowWidgets();
+  MoveDirection* fnGetMoveMoveDirectionData(mitk::BaseRenderer::ViewDirection enmaViewDirection);
+
 
   mitk::SliceNavigationController* m_TimeNavigationController;
 
@@ -197,9 +222,8 @@ private:
 // HRS_NAVIGATION_MODIFICATION starts
 protected:
   bool m_b3DViewToAnterior = true;          // Wherther Anterior is show or Posterior is shown first
-  bool m_bMoveFootToHead = true;            // This will show head at top os screen
-  bool m_bMoveLeftToRight = false;          // This will show Right portion of Body to Left Side
-  bool m_bMoveAnteriorToPosterior = false;  // THis will show Nose at Bottom of the screen.
+  
+  MoveDirection m_clAxialMoveDirection, m_clSagittalMoveDirection, m_clCoronalMoveDirection;
 
   // This parameters are for enabling/disabling crosshair while performing drawign for measurement...
   bool m_EnabledCrossHairMovementForMeasurement;

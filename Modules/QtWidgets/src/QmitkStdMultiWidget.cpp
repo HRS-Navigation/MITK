@@ -60,9 +60,9 @@ QmitkStdMultiWidget::QmitkStdMultiWidget(QWidget *parent,
 {
 // HRS_NAVIGATION_MODIFICATION starts
   m_b3DViewToAnterior = true;                 // Wherther Anterior is show or Posterior is shown first
-  m_bMoveFootToHead = true;                   // This will show head at top os screen
-  m_bMoveLeftToRight = false;                 // This will show Right portion of Body to Left Side
-  m_bMoveAnteriorToPosterior = false;         // THis will show Nose at top of the screen.
+  m_clAxialMoveDirection = MoveDirection(true, false, false);
+  m_clSagittalMoveDirection = MoveDirection(true, false, true);
+  m_clCoronalMoveDirection = MoveDirection(true, false, false);
   m_EnabledCrossHairMovementForMeasurement = true; // default
                                                    // HRS_NAVIGATION_MODIFICATION ends
 
@@ -275,215 +275,219 @@ void QmitkStdMultiWidget::ResetCrosshairZoomAware(bool resetZoom /*= false*/)
   if (nullptr == dataStorage)
     return;
 
+  // Added by AmitRungta on 17-06-2022 Let get the original Crosshair position.
+  mitk::Point3D cross_location = GetSelectedPosition("");
+
+  int parallelProjection[3];
+  double parallelScaleOrViewAngle[3];
+
+  if (!resetZoom)
   {
-    int parallelProjection[3];
-    double parallelScaleOrViewAngle[3];
+    parallelProjection[0] =
+      this->GetRenderWindow1()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->GetParallelProjection();
+    parallelProjection[1] =
+      this->GetRenderWindow2()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->GetParallelProjection();
+    parallelProjection[2] =
+      this->GetRenderWindow3()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->GetParallelProjection();
 
-    if (!resetZoom)
+    if (parallelProjection[0])
+      parallelScaleOrViewAngle[0] =
+        this->GetRenderWindow1()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->GetParallelScale();
+    else
+      parallelScaleOrViewAngle[0] =
+        this->GetRenderWindow1()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->GetViewAngle();
+
+    if (parallelProjection[1])
+      parallelScaleOrViewAngle[1] =
+        this->GetRenderWindow2()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->GetParallelScale();
+    else
+      parallelScaleOrViewAngle[1] =
+        this->GetRenderWindow2()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->GetViewAngle();
+
+    if (parallelProjection[2])
+      parallelScaleOrViewAngle[2] =
+        this->GetRenderWindow3()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->GetParallelScale();
+    else
+      parallelScaleOrViewAngle[2] =
+        this->GetRenderWindow3()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->GetViewAngle();
+  }
+
+  // mitk::RenderingManager::GetInstance()->InitializeViewsByBoundingObjects(dataStorage);
+  // get all nodes that have not set "includeInBoundingBox" to false
+  mitk::NodePredicateNot::Pointer pred = mitk::NodePredicateNot::New(
+    mitk::NodePredicateProperty::New("includeInBoundingBox", mitk::BoolProperty::New(false)));
+
+  mitk::DataStorage::SetOfObjects::ConstPointer rs = dataStorage->GetSubset(pred);
+  // calculate bounding geometry of these nodes
+  auto bounds = dataStorage->ComputeBoundingGeometry3D(rs, "visible");
+
+  // initialize the views to the bounding geometry
+  mitk::RenderingManager::GetInstance()->InitializeViews(
+    bounds, resetZoom ? mitk::RenderingManager::REQUEST_UPDATE_ALL : mitk::RenderingManager::REQUEST_UPDATE_2DWINDOWS);
+
+  if (resetZoom)
+  {
+    if (m_b3DViewToAnterior)
+      this->GetRenderWindow4()->GetRenderer()->GetCameraController()->SetViewToAnterior(); // 3D Front side
+    else
+      this->GetRenderWindow4()->GetRenderer()->GetCameraController()->SetViewToPosterior(); // 3D back Side
+  }
+
+  // Now lets update the settings for each of the individual Render window controllers.
+  {
+    // Axial View.
     {
-      parallelProjection[0] =
-        this->GetRenderWindow1()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->GetParallelProjection();
-      parallelProjection[1] =
-        this->GetRenderWindow2()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->GetParallelProjection();
-      parallelProjection[2] =
-        this->GetRenderWindow3()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->GetParallelProjection();
-
-      if (parallelProjection[0])
-        parallelScaleOrViewAngle[0] =
-          this->GetRenderWindow1()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->GetParallelScale();
-      else
-        parallelScaleOrViewAngle[0] =
-          this->GetRenderWindow1()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->GetViewAngle();
-
-      if (parallelProjection[1])
-        parallelScaleOrViewAngle[1] =
-          this->GetRenderWindow2()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->GetParallelScale();
-      else
-        parallelScaleOrViewAngle[1] =
-          this->GetRenderWindow2()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->GetViewAngle();
-
-      if (parallelProjection[2])
-        parallelScaleOrViewAngle[2] =
-          this->GetRenderWindow3()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->GetParallelScale();
-      else
-        parallelScaleOrViewAngle[2] =
-          this->GetRenderWindow3()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->GetViewAngle();
-    }
-
-    // mitk::RenderingManager::GetInstance()->InitializeViewsByBoundingObjects(dataStorage);
-    // get all nodes that have not set "includeInBoundingBox" to false
-    mitk::NodePredicateNot::Pointer pred = mitk::NodePredicateNot::New(
-      mitk::NodePredicateProperty::New("includeInBoundingBox", mitk::BoolProperty::New(false)));
-
-    mitk::DataStorage::SetOfObjects::ConstPointer rs = dataStorage->GetSubset(pred);
-    // calculate bounding geometry of these nodes
-    auto bounds = dataStorage->ComputeBoundingGeometry3D(rs, "visible");
-
-    // initialize the views to the bounding geometry
-    mitk::RenderingManager::GetInstance()->InitializeViews(
-      bounds,
-      resetZoom ? mitk::RenderingManager::REQUEST_UPDATE_ALL : mitk::RenderingManager::REQUEST_UPDATE_2DWINDOWS);
-
-    if (resetZoom)
-    {
-      if (m_b3DViewToAnterior)
-        this->GetRenderWindow4()->GetRenderer()->GetCameraController()->SetViewToAnterior(); // 3D Front side
-      else
-        this->GetRenderWindow4()->GetRenderer()->GetCameraController()->SetViewToPosterior(); // 3D back Side
-    }
-
-    // Now lets update the settings for each of the individual Render window controllers.
-    {
-      // Axial View.
+      MoveDirection *clpMoveDirection = fnGetMoveMoveDirectionData(mitk::BaseRenderer::ViewDirection::AXIAL);
+      bool top = false, frontside = false, rotated = true;
+      top = !clpMoveDirection->m_bMoveFootToHead;
+      if (clpMoveDirection->m_bMoveLeftToRight)
       {
-        bool top = false, frontside = false, rotated = true;
-        top = !m_bMoveFootToHead;
-        if (m_bMoveLeftToRight)
+        // Patient Left is on the Left side of Screen.
+        if (clpMoveDirection->m_bMoveAnteriorToPosterior)
         {
-          // Patient Left is on the Left side of Screen.
-          if (m_bMoveAnteriorToPosterior)
-          {
-            // Nose is at the bottom of screen
-            frontside = false;
-            rotated = false;
-          }
-          else
-          {
-            // Nose is at the top of screen
-            frontside = true;
-            rotated = true;
-          }
+          // Nose is at the bottom of screen
+          frontside = false;
+          rotated = false;
         }
         else
         {
-          // Patient Left is on the Right side of Screen.
-          if (m_bMoveAnteriorToPosterior)
-          {
-            // Nose is at the bottom of screen
-            frontside = true;
-            rotated = false;
-          }
-          else
-          {
-            // Nose is at the top of screen
-            frontside = false;
-            rotated = true;
-          }
+          // Nose is at the top of screen
+          frontside = true;
+          rotated = true;
         }
-        this->GetRenderWindow1()->GetSliceNavigationController()->Update(
-          mitk::SliceNavigationController::Axial, top, frontside, rotated);
       }
-
-      // Sagittial View.
+      else
       {
-        bool top = true, frontside = true, rotated = false;
-        top = m_bMoveLeftToRight;
-        if (m_bMoveAnteriorToPosterior)
+        // Patient Left is on the Right side of Screen.
+        if (clpMoveDirection->m_bMoveAnteriorToPosterior)
         {
-          // Patient Nose is on the Left side of Screen.
-          if (m_bMoveFootToHead)
-          {
-            // Foot is at the bottom of screen
-            frontside = true;
-            rotated = false;
-          }
-          else
-          {
-            // Foot is at the top of screen
-            frontside = false;
-            rotated = true;
-          }
+          // Nose is at the bottom of screen
+          frontside = true;
+          rotated = false;
         }
         else
         {
-          // Patient Nose is on the Right side of Screen.
-          if (m_bMoveFootToHead)
-          {
-            // Foot is at the bottom of screen
-            frontside = false;
-            rotated = false;
-          }
-          else
-          {
-            // Foot is at the top of screen
-            frontside = true;
-            rotated = true;
-          }
+          // Nose is at the top of screen
+          frontside = false;
+          rotated = true;
         }
-        this->GetRenderWindow2()->GetSliceNavigationController()->Update(
-          mitk::SliceNavigationController::Sagittal, top, frontside, rotated);
       }
-
-
-      // Coronial View.
-      {
-        bool top = true, frontside = true, rotated = false;
-        top = !m_bMoveAnteriorToPosterior;
-        if (m_bMoveLeftToRight)
-        {
-          // Patient Left is on the Left side of Screen.
-          if (m_bMoveFootToHead)
-          {
-            // Foot is at the bottom of screen
-            frontside = false;
-            rotated = false;
-          }
-          else
-          {
-            // Foot is at the top of screen
-            frontside = true;
-            rotated = true;
-          }
-        }
-        else
-        {
-          // Patient Left is on the Right side of Screen.
-          if (m_bMoveFootToHead)
-          {
-            // Foot is at the bottom of screen
-            frontside = true;
-            rotated = false;
-          }
-          else
-          {
-            // Foot is at the top of screen
-            frontside = false;
-            rotated = true;
-          }
-        }
-        this->GetRenderWindow3()->GetSliceNavigationController()->Update(
-          mitk::SliceNavigationController::Frontal, top, frontside, rotated);
-      }
+      this->GetRenderWindow1()->GetSliceNavigationController()->Update(
+        mitk::SliceNavigationController::Axial, top, frontside, rotated);
     }
 
-
-    // reset interactor to normal slicing
-    this->SetWidgetPlaneMode(mitk::InteractionSchemeSwitcher::MITKStandard);
-
-    if (!resetZoom)
+    // Sagittial View.
     {
-      if (parallelProjection[0])
-        this->GetRenderWindow1()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->SetParallelScale(
-          parallelScaleOrViewAngle[0]);
+      MoveDirection *clpMoveDirection = fnGetMoveMoveDirectionData(mitk::BaseRenderer::ViewDirection::SAGITTAL);
+      bool top = true, frontside = true, rotated = false;
+      top = clpMoveDirection->m_bMoveLeftToRight;
+      if (clpMoveDirection->m_bMoveAnteriorToPosterior)
+      {
+        // Patient Nose is on the Left side of Screen.
+        if (clpMoveDirection->m_bMoveFootToHead)
+        {
+          // Foot is at the bottom of screen
+          frontside = true;
+          rotated = false;
+        }
+        else
+        {
+          // Foot is at the top of screen
+          frontside = false;
+          rotated = true;
+        }
+      }
       else
-        this->GetRenderWindow1()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->SetViewAngle(
-          parallelScaleOrViewAngle[0]);
+      {
+        // Patient Nose is on the Right side of Screen.
+        if (clpMoveDirection->m_bMoveFootToHead)
+        {
+          // Foot is at the bottom of screen
+          frontside = false;
+          rotated = false;
+        }
+        else
+        {
+          // Foot is at the top of screen
+          frontside = true;
+          rotated = true;
+        }
+      }
+      this->GetRenderWindow2()->GetSliceNavigationController()->Update(
+        mitk::SliceNavigationController::Sagittal, top, frontside, rotated);
+    }
 
-      if (parallelProjection[1])
-        this->GetRenderWindow2()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->SetParallelScale(
-          parallelScaleOrViewAngle[1]);
+    // Coronial View.
+    {
+      MoveDirection *clpMoveDirection = fnGetMoveMoveDirectionData(mitk::BaseRenderer::ViewDirection::CORONAL);
+      bool top = true, frontside = true, rotated = false;
+      top = !clpMoveDirection->m_bMoveAnteriorToPosterior;
+      if (clpMoveDirection->m_bMoveLeftToRight)
+      {
+        // Patient Left is on the Left side of Screen.
+        if (clpMoveDirection->m_bMoveFootToHead)
+        {
+          // Foot is at the bottom of screen
+          frontside = false;
+          rotated = false;
+        }
+        else
+        {
+          // Foot is at the top of screen
+          frontside = true;
+          rotated = true;
+        }
+      }
       else
-        this->GetRenderWindow2()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->SetViewAngle(
-          parallelScaleOrViewAngle[1]);
-
-      if (parallelProjection[2])
-        this->GetRenderWindow3()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->SetParallelScale(
-          parallelScaleOrViewAngle[2]);
-      else
-        this->GetRenderWindow3()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->SetViewAngle(
-          parallelScaleOrViewAngle[2]);
+      {
+        // Patient Left is on the Right side of Screen.
+        if (clpMoveDirection->m_bMoveFootToHead)
+        {
+          // Foot is at the bottom of screen
+          frontside = true;
+          rotated = false;
+        }
+        else
+        {
+          // Foot is at the top of screen
+          frontside = false;
+          rotated = true;
+        }
+      }
+      this->GetRenderWindow3()->GetSliceNavigationController()->Update(
+        mitk::SliceNavigationController::Frontal, top, frontside, rotated);
     }
   }
+
+  // reset interactor to normal slicing
+  this->SetWidgetPlaneMode(mitk::InteractionSchemeSwitcher::MITKStandard);
+
+  if (!resetZoom)
+  {
+    if (parallelProjection[0])
+      this->GetRenderWindow1()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->SetParallelScale(
+        parallelScaleOrViewAngle[0]);
+    else
+      this->GetRenderWindow1()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->SetViewAngle(
+        parallelScaleOrViewAngle[0]);
+
+    if (parallelProjection[1])
+      this->GetRenderWindow2()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->SetParallelScale(
+        parallelScaleOrViewAngle[1]);
+    else
+      this->GetRenderWindow2()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->SetViewAngle(
+        parallelScaleOrViewAngle[1]);
+
+    if (parallelProjection[2])
+      this->GetRenderWindow3()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->SetParallelScale(
+        parallelScaleOrViewAngle[2]);
+    else
+      this->GetRenderWindow3()->GetRenderer()->GetVtkRenderer()->GetActiveCamera()->SetViewAngle(
+        parallelScaleOrViewAngle[2]);
+  }
+
+  // Added by AmitRungta on 17-06-2022 now lets restore the original Crosshair position.
+  SetSelectedPosition(cross_location, "");
 }
 // HRS_NAVIGATION_MODIFICATION ends
 
@@ -1078,30 +1082,117 @@ void QmitkStdMultiWidget::CreateRenderWindowWidgets()
 }
 
 // HRS_NAVIGATION_MODIFICATION starts
-void QmitkStdMultiWidget::fnSet3DViewToAnterior(bool baSet, bool baResetView) 
+
+QmitkStdMultiWidget::MoveDirection *QmitkStdMultiWidget::fnGetMoveMoveDirectionData(
+  mitk::BaseRenderer::ViewDirection enmaViewDirection)
+{
+  switch (enmaViewDirection)
+  {
+    case mitk::BaseRenderer::ViewDirection::AXIAL:
+      return &m_clAxialMoveDirection;
+
+    case mitk::BaseRenderer::ViewDirection::SAGITTAL:
+      return &m_clSagittalMoveDirection;
+
+    case mitk::BaseRenderer::ViewDirection::CORONAL:
+      return &m_clCoronalMoveDirection;
+  }
+
+  return &m_clAxialMoveDirection;
+}
+
+void QmitkStdMultiWidget::fnSet3DViewToAnterior(bool baSet, bool baResetView)
 {
   m_b3DViewToAnterior = baSet;
   if (baResetView)
     ResetCrosshairZoomAware();
 }
 
-void QmitkStdMultiWidget::fnSetMoveFootToHead(bool baSet, bool baResetView)
+void QmitkStdMultiWidget::fnSetMoveFootToHead(mitk::BaseRenderer::ViewDirection enmaViewDirection,
+                                              bool baSet,
+                                              bool baResetView)
 {
-  m_bMoveFootToHead = baSet;
-  if (baResetView)
-    ResetCrosshairZoomAware();
+  QmitkStdMultiWidget::MoveDirection *clpMoveDirection =
+    QmitkStdMultiWidget::fnGetMoveMoveDirectionData(enmaViewDirection);
+
+  clpMoveDirection->m_bMoveFootToHead = baSet;
+
+  fnSetMoveDirections(enmaViewDirection,
+                      clpMoveDirection->m_bMoveFootToHead,
+                      clpMoveDirection->m_bMoveLeftToRight,
+                      clpMoveDirection->m_bMoveAnteriorToPosterior,
+                      baResetView);
 }
 
-void QmitkStdMultiWidget::fnSetMoveLeftToRight(bool baSet, bool baResetView)
+bool QmitkStdMultiWidget::fnGetMoveFootToHead(mitk::BaseRenderer::ViewDirection enmaViewDirection)
 {
-  m_bMoveLeftToRight = baSet;
-  if (baResetView)
-    ResetCrosshairZoomAware();
+  QmitkStdMultiWidget::MoveDirection *clpMoveDirection =
+    QmitkStdMultiWidget::fnGetMoveMoveDirectionData(enmaViewDirection);
+
+  return clpMoveDirection->m_bMoveFootToHead;
 }
 
-void QmitkStdMultiWidget::fnSetMoveAnteriorToPosterior(bool baSet, bool baResetView)
+void QmitkStdMultiWidget::fnSetMoveLeftToRight(mitk::BaseRenderer::ViewDirection enmaViewDirection,
+                                               bool baSet,
+                                               bool baResetView)
 {
-  m_bMoveAnteriorToPosterior = baSet;
+  QmitkStdMultiWidget::MoveDirection *clpMoveDirection =
+    QmitkStdMultiWidget::fnGetMoveMoveDirectionData(enmaViewDirection);
+
+  clpMoveDirection->m_bMoveLeftToRight = baSet;
+
+  fnSetMoveDirections(enmaViewDirection,
+                      clpMoveDirection->m_bMoveFootToHead,
+                      clpMoveDirection->m_bMoveLeftToRight,
+                      clpMoveDirection->m_bMoveAnteriorToPosterior,
+                      baResetView);
+}
+
+bool QmitkStdMultiWidget::fnGetMoveLeftToRight(mitk::BaseRenderer::ViewDirection enmaViewDirection)
+{
+  QmitkStdMultiWidget::MoveDirection *clpMoveDirection =
+    QmitkStdMultiWidget::fnGetMoveMoveDirectionData(enmaViewDirection);
+
+  return clpMoveDirection->m_bMoveLeftToRight;
+}
+
+void QmitkStdMultiWidget::fnSetMoveAnteriorToPosterior(mitk::BaseRenderer::ViewDirection enmaViewDirection,
+                                                       bool baSet,
+                                                       bool baResetView)
+{
+  QmitkStdMultiWidget::MoveDirection *clpMoveDirection =
+    QmitkStdMultiWidget::fnGetMoveMoveDirectionData(enmaViewDirection);
+
+  clpMoveDirection->m_bMoveAnteriorToPosterior = baSet;
+
+  fnSetMoveDirections(enmaViewDirection,
+                      clpMoveDirection->m_bMoveFootToHead,
+                      clpMoveDirection->m_bMoveLeftToRight,
+                      clpMoveDirection->m_bMoveAnteriorToPosterior,
+                      baResetView);
+}
+
+bool QmitkStdMultiWidget::fnGetMoveAnteriorToPosterior(mitk::BaseRenderer::ViewDirection enmaViewDirection)
+{
+  QmitkStdMultiWidget::MoveDirection *clpMoveDirection =
+    QmitkStdMultiWidget::fnGetMoveMoveDirectionData(enmaViewDirection);
+
+  return clpMoveDirection->m_bMoveAnteriorToPosterior;
+}
+
+void QmitkStdMultiWidget::fnSetMoveDirections(mitk::BaseRenderer::ViewDirection enmaViewDirection,
+                                              bool baMoveFootToHead,
+                                              bool baMoveLeftToRight,
+                                              bool baMoveAnteriorToPosterior,
+                                              bool baResetView)
+{
+  QmitkStdMultiWidget::MoveDirection *clpMoveDirection =
+    QmitkStdMultiWidget::fnGetMoveMoveDirectionData(enmaViewDirection);
+
+  clpMoveDirection->m_bMoveFootToHead = baMoveFootToHead;
+  clpMoveDirection->m_bMoveLeftToRight = baMoveLeftToRight;
+  clpMoveDirection->m_bMoveAnteriorToPosterior = baMoveAnteriorToPosterior;
+
   if (baResetView)
     ResetCrosshairZoomAware();
 }

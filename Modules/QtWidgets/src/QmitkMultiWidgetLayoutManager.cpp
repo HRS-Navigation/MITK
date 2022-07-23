@@ -314,6 +314,15 @@ void QmitkMultiWidgetLayoutManager::SetOnly2DHorizontalLayout()
 
   m_MultiWidget->ActivateMenuWidget(true);
 
+  // HRS_NAVIGATION_MODIFICATION starts
+  // as here we are just showing the 2D windows hence lets hide the 3D windows.
+  auto all3DRenderWindowWidgets = m_MultiWidget->Get3DRenderWindowWidgets();
+  for (const auto &renderWindowWidget : all3DRenderWindowWidgets)
+  {
+    renderWindowWidget.second->hide();
+  }
+  // HRS_NAVIGATION_MODIFICATION ends
+
   auto allRenderWindows = m_MultiWidget->GetRenderWindows();
   for (auto& renderWindow : allRenderWindows)
   {
@@ -348,6 +357,15 @@ void QmitkMultiWidgetLayoutManager::SetOnly2DVerticalLayout()
   mainSplit->setSizes(splitterSize);
 
   m_MultiWidget->ActivateMenuWidget(true);
+
+  // HRS_NAVIGATION_MODIFICATION starts
+  // as here we are just showing the 2D windows hence lets hide the 3D windows.
+  auto all3DRenderWindowWidgets = m_MultiWidget->Get3DRenderWindowWidgets();
+  for (const auto &renderWindowWidget : all3DRenderWindowWidgets)
+  {
+    renderWindowWidget.second->hide();
+  }
+  // HRS_NAVIGATION_MODIFICATION ends
 
   auto allRenderWindows = m_MultiWidget->GetRenderWindows();
   for (auto& renderWindow : allRenderWindows)

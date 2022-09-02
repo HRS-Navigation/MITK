@@ -325,6 +325,23 @@ void QmitkRenderWindowMenu::CreateMenuWidget()
 
   connect(m_FullScreenButton, &QToolButton::clicked, this, &QmitkRenderWindowMenu::OnFullScreenButton);
   connect(m_LayoutDesignButton, &QToolButton::clicked, this, &QmitkRenderWindowMenu::OnLayoutDesignButton);
+
+
+  {
+    // HRS_NAVIGATION_MODIFICATION starts
+    // Modified by AmitRungta on 02-09-2022 as we have specified the QToolButton margins and radius and hence these were coming very tiny in our application.
+    // To resolve the same i have set them to be default to none as these are special buttons.
+    const QString nclQsStyle("QToolButton {border: none;border-radius: 0px;margin: 0px;}");
+    m_CrosshairModeButton->setStyleSheet(nclQsStyle);
+    m_FullScreenButton->setStyleSheet(nclQsStyle);
+    m_LayoutDesignButton->setStyleSheet(nclQsStyle);
+
+    // Now lets add tooltip to these buttons.
+    m_CrosshairModeButton->setToolTip("Set the Cross-Hair mode.");
+    m_FullScreenButton->setToolTip(m_FullScreenMode ? "Make the view as split display" : "Make this view Full-Screen.");
+    m_LayoutDesignButton->setToolTip("Select Layout design for display");
+    // HRS_NAVIGATION_MODIFICATION ends
+  }
 }
 
 void QmitkRenderWindowMenu::CreateSettingsWidget()
@@ -394,6 +411,11 @@ void QmitkRenderWindowMenu::CreateSettingsWidget()
 void QmitkRenderWindowMenu::ChangeFullScreenIcon()
 {
   m_FullScreenButton->setIcon(m_FullScreenMode ? QPixmap(iconLeaveFullScreen_xpm) : QPixmap(iconFullScreen_xpm));
+
+    // HRS_NAVIGATION_MODIFICATION starts
+  // Now lets add tooltip to these buttons.
+  m_FullScreenButton->setToolTip(m_FullScreenMode ? "Make the view as split display" : "Make this view Full-Screen.");
+  // HRS_NAVIGATION_MODIFICATION ends
 }
 
 void QmitkRenderWindowMenu::AutoRotateNextStep()

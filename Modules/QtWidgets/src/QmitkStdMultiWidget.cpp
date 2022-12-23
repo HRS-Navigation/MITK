@@ -487,7 +487,24 @@ void QmitkStdMultiWidget::ResetCrosshairZoomAware(bool resetZoom /*= false*/)
   }
 
   // Added by AmitRungta on 17-06-2022 now lets restore the original Crosshair position.
-  SetSelectedPosition(cross_location, "");
+  if (!resetZoom)
+    SetSelectedPosition(cross_location, "");
+  else
+  {
+      // Lets set the center as our selected point, as that was the default behaviour in the original implementation in the ResetCrosshair.
+    mitk::SliceNavigationController *nc1 = this->GetRenderWindow1()->GetRenderer()->GetSliceNavigationController();
+    mitk::SliceNavigationController *nc2 = this->GetRenderWindow2()->GetRenderer()->GetSliceNavigationController();
+    mitk::SliceNavigationController *nc3 = this->GetRenderWindow3()->GetRenderer()->GetSliceNavigationController();
+
+    if (nc1 && nc1->GetSlice() && nc1->GetSlice()->GetSteps() > 0)
+      nc1->GetSlice()->SetPos(nc1->GetSlice()->GetSteps() / 2);
+ 
+    if (nc2 && nc2->GetSlice() && nc2->GetSlice()->GetSteps() > 0)
+      nc2->GetSlice()->SetPos(nc2->GetSlice()->GetSteps() / 2);
+    
+    if (nc3 && nc3->GetSlice() && nc3->GetSlice()->GetSteps() > 0)
+      nc3->GetSlice()->SetPos(nc3->GetSlice()->GetSteps() / 2);
+  }
 }
 // HRS_NAVIGATION_MODIFICATION ends
 

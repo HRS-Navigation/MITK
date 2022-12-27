@@ -217,75 +217,148 @@ void QmitkLevelWindowWidgetContextMenu::GetContextMenu(QMenu *contextMenu)
 
     connect(m_PresetSubmenu, &QMenu::triggered, this, &QmitkLevelWindowWidgetContextMenu::OnSetPreset);
     contextMenu->addMenu(m_PresetSubmenu);
-    contextMenu->addSeparator();
-    m_ImageSubmenu = new QMenu(this);
-    m_ImageSubmenu->setTitle("Images");
 
-    // add action for "auto topmost image" action
-    m_AutoTopmostAction = m_ImageSubmenu->addAction(tr("Set topmost image"));
-    m_AutoTopmostAction->setCheckable(true);
-    if (m_Manager->IsAutoTopMost())
-    {
-      m_AutoTopmostAction->setChecked(true);
-    }
+    // HRS_NAVIGATION_MODIFICATION starts
+    // Modified by AmitRungta on 27-12-2022  as we donot want the "Set topmost image" and "Use selected images" options.
+    // Also we want to show the images selection option only if nore than 1 image is present.
+    /*
+      contextMenu->addSeparator();
+      m_ImageSubmenu = new QMenu(this);
+      m_ImageSubmenu->setTitle("Images");
 
-    // add action for "selected images" action
-    m_ImageSubmenu->addSeparator();
-    m_SelectedImagesAction = m_ImageSubmenu->addAction(tr("Use selected images"));
-    m_SelectedImagesAction->setCheckable(true);
-    if (m_Manager->IsSelectedImages())
-    {
-      m_SelectedImagesAction->setChecked(true);
-    }
-
-    // add action for individual images
-    m_ImageSubmenu->addSeparator();
-
-    mitk::DataStorage::SetOfObjects::ConstPointer allObjects = m_Manager->GetRelevantNodes();
-    for (mitk::DataStorage::SetOfObjects::ConstIterator objectIter = allObjects->Begin();
-      objectIter != allObjects->End();
-      ++objectIter)
-    {
-      mitk::DataNode *node = objectIter->Value();
-      if (nullptr == node)
+      // add action for "auto topmost image" action
+      m_AutoTopmostAction = m_ImageSubmenu->addAction(tr("Set topmost image"));
+      m_AutoTopmostAction->setCheckable(true);
+      if (m_Manager->IsAutoTopMost())
       {
-        continue;
+        m_AutoTopmostAction->setChecked(true);
       }
 
-      bool isHelperObject = false;
-      node->GetBoolProperty("helper object", isHelperObject);
-
-      if (isHelperObject)
+      // add action for "selected images" action
+      m_ImageSubmenu->addSeparator();
+      m_SelectedImagesAction = m_ImageSubmenu->addAction(tr("Use selected images"));
+      m_SelectedImagesAction->setCheckable(true);
+      if (m_Manager->IsSelectedImages())
       {
-        continue;
+        m_SelectedImagesAction->setChecked(true);
       }
 
-      if (!node->IsVisible(nullptr))
-      {
-        continue;
-      }
+      // add action for individual images
+      m_ImageSubmenu->addSeparator();
 
-      mitk::LevelWindowProperty::Pointer levelWindowProperty =
-        dynamic_cast<mitk::LevelWindowProperty *>(node->GetProperty("levelwindow"));
-
-      if (levelWindowProperty.IsNotNull())
+      mitk::DataStorage::SetOfObjects::ConstPointer allObjects = m_Manager->GetRelevantNodes();
+      for (mitk::DataStorage::SetOfObjects::ConstIterator objectIter = allObjects->Begin();
+           objectIter != allObjects->End();
+           ++objectIter)
       {
-        std::string name;
-        node->GetName(name);
-        QString item = name.c_str();
-        QAction *id = m_ImageSubmenu->addAction(item);
-        id->setCheckable(true);
-        m_Images[id] = levelWindowProperty;
-        if (levelWindowProperty == m_Manager->GetLevelWindowProperty())
+        mitk::DataNode *node = objectIter->Value();
+        if (nullptr == node)
         {
-          id->setChecked(true);
+          continue;
+        }
+
+        bool isHelperObject = false;
+        node->GetBoolProperty("helper object", isHelperObject);
+
+        if (isHelperObject)
+        {
+          continue;
+        }
+
+        if (!node->IsVisible(nullptr))
+        {
+          continue;
+        }
+
+        mitk::LevelWindowProperty::Pointer levelWindowProperty =
+          dynamic_cast<mitk::LevelWindowProperty *>(node->GetProperty("levelwindow"));
+
+        if (levelWindowProperty.IsNotNull())
+        {
+          std::string name;
+          node->GetName(name);
+          QString item = name.c_str();
+          QAction *id = m_ImageSubmenu->addAction(item);
+          id->setCheckable(true);
+          m_Images[id] = levelWindowProperty;
+          if (levelWindowProperty == m_Manager->GetLevelWindowProperty())
+          {
+            id->setChecked(true);
+          }
         }
       }
+
+      connect(m_ImageSubmenu, &QMenu::triggered, this, &QmitkLevelWindowWidgetContextMenu::OnSetImage);
+
+      contextMenu->addMenu(m_ImageSubmenu);
+    */
+    {
+      m_Images.clear(); // remove all the existing file.
+      std::vector<std::pair<std::string, mitk::LevelWindowProperty::Pointer>> clValidImagesPair;
+
+      mitk::DataStorage::SetOfObjects::ConstPointer allObjects = m_Manager->GetRelevantNodes();
+      for (mitk::DataStorage::SetOfObjects::ConstIterator objectIter = allObjects->Begin();
+           objectIter != allObjects->End();
+           ++objectIter)
+      {
+        mitk::DataNode *node = objectIter->Value();
+        if (nullptr == node)
+        {
+          continue;
+        }
+
+        bool isHelperObject = false;
+        node->GetBoolProperty("helper object", isHelperObject);
+
+        if (isHelperObject)
+        {
+          continue;
+        }
+
+        if (!node->IsVisible(nullptr))
+        {
+          continue;
+        }
+
+        mitk::LevelWindowProperty::Pointer levelWindowProperty =
+          dynamic_cast<mitk::LevelWindowProperty *>(node->GetProperty("levelwindow"));
+
+        if (levelWindowProperty.IsNotNull())
+        {
+          std::string name;
+          node->GetName(name);
+          clValidImagesPair.push_back(std::make_pair(name, levelWindowProperty));
+        }
+      }
+
+      m_ImageSubmenu = nullptr;
+      m_AutoTopmostAction = nullptr;
+      m_SelectedImagesAction = nullptr;
+
+      if (clValidImagesPair.size() > 1)
+      {
+        m_ImageSubmenu = new QMenu(this);
+        m_ImageSubmenu->setTitle("Images");
+
+        for (auto clImagesPair : clValidImagesPair)
+        {
+          QString item = clImagesPair.first.c_str();
+          QAction *id = m_ImageSubmenu->addAction(item);
+          id->setCheckable(true);
+          m_Images[id] = clImagesPair.second;
+          if (clImagesPair.second == m_Manager->GetLevelWindowProperty())
+          {
+            id->setChecked(true);
+          }
+        }
+
+        contextMenu->addSeparator();
+        connect(m_ImageSubmenu, &QMenu::triggered, this, &QmitkLevelWindowWidgetContextMenu::OnSetImage);
+        contextMenu->addMenu(m_ImageSubmenu);
+      }
     }
+    // HRS_NAVIGATION_MODIFICATION ends
 
-    connect(m_ImageSubmenu, &QMenu::triggered, this, &QmitkLevelWindowWidgetContextMenu::OnSetImage);
-
-    contextMenu->addMenu(m_ImageSubmenu);
     contextMenu->exec(QCursor::pos());
   }
   catch (...)

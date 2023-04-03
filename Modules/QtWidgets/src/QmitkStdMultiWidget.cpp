@@ -51,6 +51,12 @@ found in the LICENSE file.
 // c++
 #include <iomanip>
 
+
+// HRS_NAVIGATION_MODIFICATION starts
+#include "HRSMoveDirection.h"
+// HRS_NAVIGATION_MODIFICATION ends
+
+
 QmitkStdMultiWidget::QmitkStdMultiWidget(QWidget *parent,
                                          Qt::WindowFlags f/* = 0*/,
                                          const QString &name/* = "stdmulti"*/)
@@ -58,15 +64,16 @@ QmitkStdMultiWidget::QmitkStdMultiWidget(QWidget *parent,
   , m_TimeNavigationController(nullptr)
   , m_PendingCrosshairPositionEvent(false)
 {
-// HRS_NAVIGATION_MODIFICATION starts
-  m_b3DViewToAnterior = true;                 // Wherther Anterior is show or Posterior is shown first
-  m_clAxialMoveDirection = MoveDirection(true, false, false);
-  m_clSagittalMoveDirection = MoveDirection(true, false, true);
-  m_clCoronalMoveDirection = MoveDirection(true, false, false);
+  // HRS_NAVIGATION_MODIFICATION starts
+  m_b3DViewToAnterior = true;                      // Wherther Anterior is show or Posterior is shown first
   m_EnabledCrossHairMovementForMeasurement = true; // default
                                                    // HRS_NAVIGATION_MODIFICATION ends
 
   m_TimeNavigationController = mitk::RenderingManager::GetInstance()->GetTimeNavigationController();
+  
+  // HRS_NAVIGATION_MODIFICATION starts
+  m_clpMoveDirectionHelper = new MoveDirectionHelper();
+  // HRS_NAVIGATION_MODIFICATION ends
 }
 
 QmitkStdMultiWidget::~QmitkStdMultiWidget()
@@ -79,7 +86,11 @@ QmitkStdMultiWidget::~QmitkStdMultiWidget()
       annotation->UnRegisterMicroservice();
   }
   m_Annotations.clear();
-// HRS_NAVIGATION_MODIFICATION ends
+
+  if (m_clpMoveDirectionHelper)
+    delete m_clpMoveDirectionHelper;
+  m_clpMoveDirectionHelper = nullptr;
+    // HRS_NAVIGATION_MODIFICATION ends
 
   m_TimeNavigationController->Disconnect(GetRenderWindow1()->GetSliceNavigationController());
   m_TimeNavigationController->Disconnect(GetRenderWindow2()->GetSliceNavigationController());
@@ -333,132 +344,6 @@ void QmitkStdMultiWidget::ResetCrosshairZoomAware(bool resetZoom /*= false*/)
       this->GetRenderWindow4()->GetRenderer()->GetCameraController()->SetViewToPosterior(); // 3D back Side
   }
 
-  // Now lets update the settings for each of the individual Render window controllers.
-  {
-    // Axial View.
-    {
-      MoveDirection *clpMoveDirection = fnGetMoveMoveDirectionData(mitk::BaseRenderer::ViewDirection::AXIAL);
-      bool top = false, frontside = false, rotated = true;
-      top = !clpMoveDirection->m_bMoveFootToHead;
-      if (clpMoveDirection->m_bMoveLeftToRight)
-      {
-        // Patient Left is on the Left side of Screen.
-        if (clpMoveDirection->m_bMoveAnteriorToPosterior)
-        {
-          // Nose is at the bottom of screen
-          frontside = false;
-          rotated = false;
-        }
-        else
-        {
-          // Nose is at the top of screen
-          frontside = true;
-          rotated = true;
-        }
-      }
-      else
-      {
-        // Patient Left is on the Right side of Screen.
-        if (clpMoveDirection->m_bMoveAnteriorToPosterior)
-        {
-          // Nose is at the bottom of screen
-          frontside = true;
-          rotated = false;
-        }
-        else
-        {
-          // Nose is at the top of screen
-          frontside = false;
-          rotated = true;
-        }
-      }
-      this->GetRenderWindow1()->GetSliceNavigationController()->Update(
-        mitk::SliceNavigationController::Axial, top, frontside, rotated);
-    }
-
-    // Sagittial View.
-    {
-      MoveDirection *clpMoveDirection = fnGetMoveMoveDirectionData(mitk::BaseRenderer::ViewDirection::SAGITTAL);
-      bool top = true, frontside = true, rotated = false;
-      top = clpMoveDirection->m_bMoveLeftToRight;
-      if (clpMoveDirection->m_bMoveAnteriorToPosterior)
-      {
-        // Patient Nose is on the Left side of Screen.
-        if (clpMoveDirection->m_bMoveFootToHead)
-        {
-          // Foot is at the bottom of screen
-          frontside = true;
-          rotated = false;
-        }
-        else
-        {
-          // Foot is at the top of screen
-          frontside = false;
-          rotated = true;
-        }
-      }
-      else
-      {
-        // Patient Nose is on the Right side of Screen.
-        if (clpMoveDirection->m_bMoveFootToHead)
-        {
-          // Foot is at the bottom of screen
-          frontside = false;
-          rotated = false;
-        }
-        else
-        {
-          // Foot is at the top of screen
-          frontside = true;
-          rotated = true;
-        }
-      }
-      this->GetRenderWindow2()->GetSliceNavigationController()->Update(
-        mitk::SliceNavigationController::Sagittal, top, frontside, rotated);
-    }
-
-    // Coronial View.
-    {
-      MoveDirection *clpMoveDirection = fnGetMoveMoveDirectionData(mitk::BaseRenderer::ViewDirection::CORONAL);
-      bool top = true, frontside = true, rotated = false;
-      top = !clpMoveDirection->m_bMoveAnteriorToPosterior;
-      if (clpMoveDirection->m_bMoveLeftToRight)
-      {
-        // Patient Left is on the Left side of Screen.
-        if (clpMoveDirection->m_bMoveFootToHead)
-        {
-          // Foot is at the bottom of screen
-          frontside = false;
-          rotated = false;
-        }
-        else
-        {
-          // Foot is at the top of screen
-          frontside = true;
-          rotated = true;
-        }
-      }
-      else
-      {
-        // Patient Left is on the Right side of Screen.
-        if (clpMoveDirection->m_bMoveFootToHead)
-        {
-          // Foot is at the bottom of screen
-          frontside = true;
-          rotated = false;
-        }
-        else
-        {
-          // Foot is at the top of screen
-          frontside = false;
-          rotated = true;
-        }
-      }
-      this->GetRenderWindow3()->GetSliceNavigationController()->Update(
-        mitk::SliceNavigationController::Frontal, top, frontside, rotated);
-    }
-  }
-
   // reset interactor to normal slicing
   this->SetWidgetPlaneMode(mitk::InteractionSchemeSwitcher::MITKStandard);
 
@@ -505,6 +390,9 @@ void QmitkStdMultiWidget::ResetCrosshairZoomAware(bool resetZoom /*= false*/)
     if (nc3 && nc3->GetSlice() && nc3->GetSlice()->GetSteps() > 0)
       nc3->GetSlice()->SetPos(nc3->GetSlice()->GetSteps() / 2);
   }
+
+  // Added by AmitRungta on 31-03-2023 for signaling that the ResetCrossHair is complete.
+  emit NotifyResetCrosshairCompleted();
 }
 // HRS_NAVIGATION_MODIFICATION ends
 
@@ -1064,6 +952,15 @@ void QmitkStdMultiWidget::CreateRenderWindowWidgets()
   renderWindow3->GetSliceNavigationController()->ConnectGeometryTimeEvent(m_TimeNavigationController, false);
   //renderWindow4->GetSliceNavigationController()->ConnectGeometryTimeEvent(m_TimeNavigationController, false);
 
+  // HRS_NAVIGATION_MODIFICATION starts
+  // Set the Move direction helper in each of the slice controllers.
+  renderWindow1->GetSliceNavigationController()->fnSetMoveDirectionHelper(m_clpMoveDirectionHelper);
+  renderWindow2->GetSliceNavigationController()->fnSetMoveDirectionHelper(m_clpMoveDirectionHelper);
+  renderWindow3->GetSliceNavigationController()->fnSetMoveDirectionHelper(m_clpMoveDirectionHelper);
+  renderWindow4->GetSliceNavigationController()->fnSetMoveDirectionHelper(m_clpMoveDirectionHelper);
+  // HRS_NAVIGATION_MODIFICATION ends
+
+
   auto layoutManager = GetMultiWidgetLayoutManager();
   connect(renderWindowWidget1.get(), &QmitkRenderWindowWidget::MouseEvent, this, &QmitkStdMultiWidget::mousePressEvent);
   connect(renderWindow1, &QmitkRenderWindow::ResetView, this, &QmitkStdMultiWidget::ResetCrosshair);
@@ -1100,23 +997,6 @@ void QmitkStdMultiWidget::CreateRenderWindowWidgets()
 
 // HRS_NAVIGATION_MODIFICATION starts
 
-QmitkStdMultiWidget::MoveDirection *QmitkStdMultiWidget::fnGetMoveMoveDirectionData(
-  mitk::BaseRenderer::ViewDirection enmaViewDirection)
-{
-  switch (enmaViewDirection)
-  {
-    case mitk::BaseRenderer::ViewDirection::AXIAL:
-      return &m_clAxialMoveDirection;
-
-    case mitk::BaseRenderer::ViewDirection::SAGITTAL:
-      return &m_clSagittalMoveDirection;
-
-    case mitk::BaseRenderer::ViewDirection::CORONAL:
-      return &m_clCoronalMoveDirection;
-  }
-
-  return &m_clAxialMoveDirection;
-}
 
 void QmitkStdMultiWidget::fnSet3DViewToAnterior(bool baSet, bool baResetView)
 {
@@ -1125,76 +1005,20 @@ void QmitkStdMultiWidget::fnSet3DViewToAnterior(bool baSet, bool baResetView)
     ResetCrosshairZoomAware();
 }
 
-void QmitkStdMultiWidget::fnSetMoveFootToHead(mitk::BaseRenderer::ViewDirection enmaViewDirection,
-                                              bool baSet,
-                                              bool baResetView)
-{
-  QmitkStdMultiWidget::MoveDirection *clpMoveDirection =
-    QmitkStdMultiWidget::fnGetMoveMoveDirectionData(enmaViewDirection);
-
-  clpMoveDirection->m_bMoveFootToHead = baSet;
-
-  fnSetMoveDirections(enmaViewDirection,
-                      clpMoveDirection->m_bMoveFootToHead,
-                      clpMoveDirection->m_bMoveLeftToRight,
-                      clpMoveDirection->m_bMoveAnteriorToPosterior,
-                      baResetView);
-}
-
 bool QmitkStdMultiWidget::fnGetMoveFootToHead(mitk::BaseRenderer::ViewDirection enmaViewDirection)
 {
-  QmitkStdMultiWidget::MoveDirection *clpMoveDirection =
-    QmitkStdMultiWidget::fnGetMoveMoveDirectionData(enmaViewDirection);
-
-  return clpMoveDirection->m_bMoveFootToHead;
-}
-
-void QmitkStdMultiWidget::fnSetMoveLeftToRight(mitk::BaseRenderer::ViewDirection enmaViewDirection,
-                                               bool baSet,
-                                               bool baResetView)
-{
-  QmitkStdMultiWidget::MoveDirection *clpMoveDirection =
-    QmitkStdMultiWidget::fnGetMoveMoveDirectionData(enmaViewDirection);
-
-  clpMoveDirection->m_bMoveLeftToRight = baSet;
-
-  fnSetMoveDirections(enmaViewDirection,
-                      clpMoveDirection->m_bMoveFootToHead,
-                      clpMoveDirection->m_bMoveLeftToRight,
-                      clpMoveDirection->m_bMoveAnteriorToPosterior,
-                      baResetView);
+  return m_clpMoveDirectionHelper->fnGetMoveFootToHead(enmaViewDirection);
 }
 
 bool QmitkStdMultiWidget::fnGetMoveLeftToRight(mitk::BaseRenderer::ViewDirection enmaViewDirection)
 {
-  QmitkStdMultiWidget::MoveDirection *clpMoveDirection =
-    QmitkStdMultiWidget::fnGetMoveMoveDirectionData(enmaViewDirection);
-
-  return clpMoveDirection->m_bMoveLeftToRight;
+  return m_clpMoveDirectionHelper->fnGetMoveLeftToRight(enmaViewDirection);
 }
 
-void QmitkStdMultiWidget::fnSetMoveAnteriorToPosterior(mitk::BaseRenderer::ViewDirection enmaViewDirection,
-                                                       bool baSet,
-                                                       bool baResetView)
-{
-  QmitkStdMultiWidget::MoveDirection *clpMoveDirection =
-    QmitkStdMultiWidget::fnGetMoveMoveDirectionData(enmaViewDirection);
-
-  clpMoveDirection->m_bMoveAnteriorToPosterior = baSet;
-
-  fnSetMoveDirections(enmaViewDirection,
-                      clpMoveDirection->m_bMoveFootToHead,
-                      clpMoveDirection->m_bMoveLeftToRight,
-                      clpMoveDirection->m_bMoveAnteriorToPosterior,
-                      baResetView);
-}
 
 bool QmitkStdMultiWidget::fnGetMoveAnteriorToPosterior(mitk::BaseRenderer::ViewDirection enmaViewDirection)
 {
-  QmitkStdMultiWidget::MoveDirection *clpMoveDirection =
-    QmitkStdMultiWidget::fnGetMoveMoveDirectionData(enmaViewDirection);
-
-  return clpMoveDirection->m_bMoveAnteriorToPosterior;
+  return m_clpMoveDirectionHelper->fnGetMoveAnteriorToPosterior(enmaViewDirection);
 }
 
 void QmitkStdMultiWidget::fnSetMoveDirections(mitk::BaseRenderer::ViewDirection enmaViewDirection,
@@ -1203,12 +1027,8 @@ void QmitkStdMultiWidget::fnSetMoveDirections(mitk::BaseRenderer::ViewDirection 
                                               bool baMoveAnteriorToPosterior,
                                               bool baResetView)
 {
-  QmitkStdMultiWidget::MoveDirection *clpMoveDirection =
-    QmitkStdMultiWidget::fnGetMoveMoveDirectionData(enmaViewDirection);
-
-  clpMoveDirection->m_bMoveFootToHead = baMoveFootToHead;
-  clpMoveDirection->m_bMoveLeftToRight = baMoveLeftToRight;
-  clpMoveDirection->m_bMoveAnteriorToPosterior = baMoveAnteriorToPosterior;
+  m_clpMoveDirectionHelper->fnSetMoveDirections(
+    enmaViewDirection, baMoveFootToHead, baMoveLeftToRight, baMoveAnteriorToPosterior);
 
   if (baResetView)
     ResetCrosshairZoomAware();

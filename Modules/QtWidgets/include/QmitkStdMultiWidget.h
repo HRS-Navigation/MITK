@@ -21,6 +21,13 @@ found in the LICENSE file.
 // HRS_NAVIGATION_MODIFICATION ends
 
 
+
+// HRS_NAVIGATION_MODIFICATION starts 
+// Forward decleration of the class.
+class MoveDirectionHelper;
+// HRS_NAVIGATION_MODIFICATION ends
+
+
 /**
 * @brief The 'QmitkStdMultiWidget' is a 'QmitkAbstractMultiWidget' that is used to display multiple render windows at once.
 *        Render windows are predefined in a 2x2 design with 3 different 2D view planes and a 3D render window.
@@ -109,13 +116,8 @@ public:
   // In these we are assuming that if we have XYZ Coordinates, then ( Basically we can say that bottom left corner is the Origin)
   // X is increasing Left of Screen to Right of Screen
   // Y is increasing Bottom of Screen to Top of Screen
-  void fnSetMoveFootToHead(mitk::BaseRenderer::ViewDirection enmaViewDirection, bool baSet, bool baResetView = true);
   bool fnGetMoveFootToHead(mitk::BaseRenderer::ViewDirection enmaViewDirection);
-
-  void fnSetMoveLeftToRight(mitk::BaseRenderer::ViewDirection enmaViewDirection, bool baSet, bool baResetView = true);
   bool fnGetMoveLeftToRight(mitk::BaseRenderer::ViewDirection enmaViewDirection);
-
-  void fnSetMoveAnteriorToPosterior(mitk::BaseRenderer::ViewDirection enmaViewDirection, bool baSet, bool baResetView = true);
   bool fnGetMoveAnteriorToPosterior(mitk::BaseRenderer::ViewDirection enmaViewDirection);
 
   void fnSetMoveDirections(mitk::BaseRenderer::ViewDirection enmaViewDirection,
@@ -165,32 +167,24 @@ Q_SIGNALS:
 
   void NotifyCrosshairVisibilityChanged(bool visible);
   void NotifyCrosshairRotationModeChanged(int mode);
+  
+  // HRS_NAVIGATION_MODIFICATION starts
+  void NotifyResetCrosshairCompleted();
+  // HRS_NAVIGATION_MODIFICATION ends
+
+
+
 
   void WheelMoved(QWheelEvent *);
   void Moved();
 
 private:
 
-  struct MoveDirection
-  {
-    bool m_bMoveFootToHead = true;           // This will show head at top os screen
-    bool m_bMoveLeftToRight = false;         // This will show Right portion of Body to Left Side
-    bool m_bMoveAnteriorToPosterior = false; // THis will show Nose at Bottom of the screen.
-
-    MoveDirection(bool baMoveFootToHead = true, bool baMoveLeftToRight = false, bool baMoveAnteriorToPosterior = false)
-    {
-      m_bMoveFootToHead = baMoveFootToHead;
-      m_bMoveLeftToRight = baMoveLeftToRight;
-      m_bMoveAnteriorToPosterior = baMoveAnteriorToPosterior;
-    }
-  };
-
 
   virtual void SetLayoutImpl() override;
   virtual void SetInteractionSchemeImpl() override { }
 
   void CreateRenderWindowWidgets();
-  MoveDirection* fnGetMoveMoveDirectionData(mitk::BaseRenderer::ViewDirection enmaViewDirection);
 
 
   mitk::SliceNavigationController* m_TimeNavigationController;
@@ -223,7 +217,7 @@ private:
 protected:
   bool m_b3DViewToAnterior = true;          // Wherther Anterior is show or Posterior is shown first
   
-  MoveDirection m_clAxialMoveDirection, m_clSagittalMoveDirection, m_clCoronalMoveDirection;
+  MoveDirectionHelper* m_clpMoveDirectionHelper = nullptr;
 
   // This parameters are for enabling/disabling crosshair while performing drawign for measurement...
   bool m_EnabledCrossHairMovementForMeasurement;

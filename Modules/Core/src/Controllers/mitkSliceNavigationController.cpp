@@ -41,6 +41,11 @@ found in the LICENSE file.
 
 #include <itkCommand.h>
 
+// HRS_NAVIGATION_MODIFICATION starts
+#include "HRSMoveDirection.h"
+// HRS_NAVIGATION_MODIFICATION ends
+
+
 namespace mitk
 {
   SliceNavigationController::SliceNavigationController()
@@ -79,6 +84,10 @@ namespace mitk
     m_Top = false;
     m_FrontSide = false;
     m_Rotated = false;
+    
+    // HRS_NAVIGATION_MODIFICATION starts
+    m_clpMoveDirectionHelper = nullptr;
+    // HRS_NAVIGATION_MODIFICATION ends
   }
 
   SliceNavigationController::~SliceNavigationController() {}
@@ -147,6 +156,9 @@ namespace mitk
     return viewDirectionString;
   }
 
+  // HRS_NAVIGATION_MODIFICATION starts
+  // This function has been reqritten to update as per the vieweing direction in the Navigation application.
+  /*
   void SliceNavigationController::Update()
   {
     if (!m_BlockUpdate)
@@ -169,6 +181,154 @@ namespace mitk
       }
     }
   }
+  */
+
+ void SliceNavigationController::Update()
+  {
+    if (!m_BlockUpdate)
+    {
+      if (m_ViewDirection == Sagittal)
+      {
+        // Sagittial View.
+        bool top = true, frontside = true, rotated = false;
+        if (m_clpMoveDirectionHelper)
+        {
+          MoveDirectionHelper::MoveDirection *clpMoveDirection =
+            m_clpMoveDirectionHelper->fnGetMoveMoveDirectionData(mitk::BaseRenderer::ViewDirection::SAGITTAL);
+          top = clpMoveDirection->m_bMoveLeftToRight;
+          if (clpMoveDirection->m_bMoveAnteriorToPosterior)
+          {
+            // Patient Nose is on the Left side of Screen.
+            if (clpMoveDirection->m_bMoveFootToHead)
+            {
+              // Foot is at the bottom of screen
+              frontside = true;
+              rotated = false;
+            }
+            else
+            {
+              // Foot is at the top of screen
+              frontside = false;
+              rotated = true;
+            }
+          }
+          else
+          {
+            // Patient Nose is on the Right side of Screen.
+            if (clpMoveDirection->m_bMoveFootToHead)
+            {
+              // Foot is at the bottom of screen
+              frontside = false;
+              rotated = false;
+            }
+            else
+            {
+              // Foot is at the top of screen
+              frontside = true;
+              rotated = true;
+            }
+          }
+        }
+        this->Update(Sagittal, top, frontside, rotated);
+      }
+      else if (m_ViewDirection == Frontal)
+      {
+        // Coronial View.
+        bool top = false, frontside = true, rotated = false;
+        if (m_clpMoveDirectionHelper)
+        {
+          MoveDirectionHelper::MoveDirection *clpMoveDirection =
+            m_clpMoveDirectionHelper->fnGetMoveMoveDirectionData(mitk::BaseRenderer::ViewDirection::CORONAL);
+
+          top = !clpMoveDirection->m_bMoveAnteriorToPosterior;
+          if (clpMoveDirection->m_bMoveLeftToRight)
+          {
+            // Patient Left is on the Left side of Screen.
+            if (clpMoveDirection->m_bMoveFootToHead)
+            {
+              // Foot is at the bottom of screen
+              frontside = false;
+              rotated = false;
+            }
+            else
+            {
+              // Foot is at the top of screen
+              frontside = true;
+              rotated = true;
+            }
+          }
+          else
+          {
+            // Patient Left is on the Right side of Screen.
+            if (clpMoveDirection->m_bMoveFootToHead)
+            {
+              // Foot is at the bottom of screen
+              frontside = true;
+              rotated = false;
+            }
+            else
+            {
+              // Foot is at the top of screen
+              frontside = false;
+              rotated = true;
+            }
+          }
+        }
+        this->Update(Frontal, false, true, false);
+      }
+      else if (m_ViewDirection == Axial)
+      {
+        // Axial View.
+        bool top = false, frontside = false, rotated = true;
+        if (m_clpMoveDirectionHelper)
+        {
+          MoveDirectionHelper::MoveDirection *clpMoveDirection =
+            m_clpMoveDirectionHelper->fnGetMoveMoveDirectionData(mitk::BaseRenderer::ViewDirection::AXIAL);
+
+          top = !clpMoveDirection->m_bMoveFootToHead;
+          if (clpMoveDirection->m_bMoveLeftToRight)
+          {
+            // Patient Left is on the Left side of Screen.
+            if (clpMoveDirection->m_bMoveAnteriorToPosterior)
+            {
+              // Nose is at the bottom of screen
+              frontside = false;
+              rotated = false;
+            }
+            else
+            {
+              // Nose is at the top of screen
+              frontside = true;
+              rotated = true;
+            }
+          }
+          else
+          {
+            // Patient Left is on the Right side of Screen.
+            if (clpMoveDirection->m_bMoveAnteriorToPosterior)
+            {
+              // Nose is at the bottom of screen
+              frontside = true;
+              rotated = false;
+            }
+            else
+            {
+              // Nose is at the top of screen
+              frontside = false;
+              rotated = true;
+            }
+          }
+        }
+        this->Update(Axial, top, frontside, rotated);
+      }
+      else
+      {
+        this->Update(m_ViewDirection);
+      }
+    }
+  }
+  // HRS_NAVIGATION_MODIFICATION ends
+
 
   void SliceNavigationController::Update(SliceNavigationController::ViewDirection viewDirection,
                                          bool top,

@@ -26,6 +26,15 @@ found in the LICENSE file.
 #include <itkCommand.h>
 #include <sstream>
 
+
+
+// HRS_NAVIGATION_MODIFICATION starts
+// Forward decleration of the class.
+class MoveDirectionHelper;
+// HRS_NAVIGATION_MODIFICATION ends
+
+
+
 namespace mitk
 {
 
@@ -430,6 +439,16 @@ namespace mitk
      * If the time geometry is not yet set, this function will always return 0.0.*/
     TimePointType GetSelectedTimePoint() const;
 
+
+    // HRS_NAVIGATION_MODIFICATION starts
+    void fnSetMoveDirectionHelper(MoveDirectionHelper *clpaMoveDirectionHelper)
+    {
+      m_clpMoveDirectionHelper = clpaMoveDirectionHelper;
+    };
+    // HRS_NAVIGATION_MODIFICATION ends
+
+
+
   protected:
     SliceNavigationController();
     ~SliceNavigationController() override;
@@ -470,6 +489,11 @@ namespace mitk
 
     typedef std::map<void *, std::list<unsigned long>> ObserverTagsMapType;
     ObserverTagsMapType m_ReceiverToObserverTagsMap;
+
+    // HRS_NAVIGATION_MODIFICATION starts
+    MoveDirectionHelper* m_clpMoveDirectionHelper = nullptr;
+    // HRS_NAVIGATION_MODIFICATION ends
+
   };
 
 } // namespace mitk

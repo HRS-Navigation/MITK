@@ -134,6 +134,13 @@ void mitk::LevelWindow::SetWindowBounds(mitk::ScalarType lowerBound,
   if (IsFixed())
     return;
 
+  // HRS_NAVIGATION_MODIFICATION starts
+  // started checking for the infinity and Nan values as for these our software was getting hanged. To set this value 
+  // just type 2e+9999999 in the level edit field and it will come as inf here.
+  if ((std::isnan(lowerBound) || std::isnan(upperBound)) || (std::isinf(lowerBound) || std::isinf(upperBound)))
+    return ;
+  // HRS_NAVIGATION_MODIFICATION ends
+
   m_LowerWindowBound = lowerBound;
   m_UpperWindowBound = upperBound;
 

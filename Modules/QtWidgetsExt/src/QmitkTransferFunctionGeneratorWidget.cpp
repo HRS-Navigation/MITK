@@ -28,6 +28,7 @@ QmitkTransferFunctionGeneratorWidget::QmitkTransferFunctionGeneratorWidget(QWidg
   : QWidget(parent, f), deltaScale(1.0), deltaMax(1024), deltaMin(1)
 {
   histoGramm = nullptr;
+  m_clpDataNode = nullptr;
 
   this->setupUi(this);
 
@@ -245,7 +246,13 @@ static double stepFunctionThreshold(double x)
   return x;
 }
 
+// HRS_NAVIGATION_MODIFICATION starts
 void QmitkTransferFunctionGeneratorWidget::OnDeltaThreshold(int dx, int dy) // LEVELWINDOW
+{
+  OnDeltaThreshold(dx, dy, true);
+}
+
+void QmitkTransferFunctionGeneratorWidget::OnDeltaThreshold(int dx, int dy, bool baResetGradientOpacity) // LEVELWINDOW
 {
   if (tfpToChange.IsNull())
     return;
@@ -292,6 +299,7 @@ void QmitkTransferFunctionGeneratorWidget::OnDeltaThreshold(int dx, int dy) // L
   }
 
   // gradient at grayvalue->opacity
+  if (baResetGradientOpacity)
   {
     vtkPiecewiseFunction *f = tf->GetGradientOpacityFunction();
     f->RemoveAllPoints();
@@ -303,6 +311,7 @@ void QmitkTransferFunctionGeneratorWidget::OnDeltaThreshold(int dx, int dy) // L
   mitk::RenderingManager::GetInstance()->RequestUpdateAll();
   emit SignalUpdateCanvas();
 }
+// HRS_NAVIGATION_MODIFICATION ends
 
 QmitkTransferFunctionGeneratorWidget::~QmitkTransferFunctionGeneratorWidget()
 {
@@ -311,6 +320,7 @@ QmitkTransferFunctionGeneratorWidget::~QmitkTransferFunctionGeneratorWidget()
 void QmitkTransferFunctionGeneratorWidget::SetDataNode(mitk::DataNode *node)
 {
   histoGramm = nullptr;
+  m_clpDataNode = node;
 
   if (node)
   {

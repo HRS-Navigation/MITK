@@ -42,6 +42,8 @@ public:
 
   // HRS_NAVIGATION_MODIFICATION starts
   double GetThresholdValue();
+  void OnDeltaThreshold(int dx, int dy, bool baResetGradientOpacity);
+  mitk::DataNode::Pointer fnGetDataNode() { return m_clpDataNode; }
   // HRS_NAVIGATION_MODIFICATION ends
 
 public slots:
@@ -75,6 +77,11 @@ protected:
   double deltaMin;
 
   const mitk::Image::HistogramType *histoGramm;
+
+   // HRS_NAVIGATION_MODIFICATION starts
+    mitk::DataNode::Pointer m_clpDataNode;
+  // HRS_NAVIGATION_MODIFICATION ends
+
 
   QString presetFileName;
 

@@ -274,7 +274,7 @@ namespace mitk
             }
           }
         }
-        this->Update(Frontal, false, true, false);
+        this->Update(Frontal, top, frontside, rotated);
       }
       else if (m_ViewDirection == Axial)
       {

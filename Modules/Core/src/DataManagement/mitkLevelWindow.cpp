@@ -124,7 +124,26 @@ void mitk::LevelWindow::SetDefaultLevelWindow(mitk::ScalarType level, mitk::Scal
 
 void mitk::LevelWindow::SetLevelWindow(mitk::ScalarType level, mitk::ScalarType window, bool expandRangesIfNecessary)
 {
-  SetWindowBounds((level - (window / 2.0)), (level + (window / 2.0)), expandRangesIfNecessary);
+  // HRS_NAVIGATION_MODIFICATION starts
+  // started checking for the infinity and Nan values as for these our software was getting hanged. To set this value
+  // just type 2e+9999999 in the level edit field and it will come as inf here.
+  if ((std::isnan(level) || std::isnan(level)) || (std::isinf(window) || std::isinf(window)))
+    return;
+
+  if (level < m_RangeMin)
+    level = m_RangeMin;
+  else if (level > m_RangeMax)
+    level = m_RangeMax;
+
+  auto range = abs(m_RangeMax - m_RangeMin);
+  if (window < 0)
+    window = 0;
+  else if (window > range)
+    window = range;
+  // HRS_NAVIGATION_MODIFICATION ends
+
+
+    SetWindowBounds((level - (window / 2.0)), (level + (window / 2.0)), expandRangesIfNecessary);
 }
 
 void mitk::LevelWindow::SetWindowBounds(mitk::ScalarType lowerBound,
@@ -139,6 +158,10 @@ void mitk::LevelWindow::SetWindowBounds(mitk::ScalarType lowerBound,
   // just type 2e+9999999 in the level edit field and it will come as inf here.
   if ((std::isnan(lowerBound) || std::isnan(upperBound)) || (std::isinf(lowerBound) || std::isinf(upperBound)))
     return ;
+
+  // Also check that the range should be valid.
+  if (!std::isfinite(fabs(upperBound - lowerBound)))
+    return;
   // HRS_NAVIGATION_MODIFICATION ends
 
   m_LowerWindowBound = lowerBound;

@@ -85,7 +85,13 @@ void QmitkLineEditLevelWindowWidget::OnPropertyModified(const itk::EventObject &
     m_LevelWindow = m_Manager->GetLevelWindow();
     QString level;
     QString window;
-    if (m_LevelWindow.IsFloatingValues())
+    // HRS_NAVIGATION_MODIFICATION starts
+    // We want to show as scientific only in case if the number values are very small and they are in floating
+    // In case if the values are larger and we show them as exponential then somebody can type values after exponential
+    // and hence we can have very large values and hence issues.
+    // if (m_LevelWindow.IsFloatingValues())
+    if (m_LevelWindow.IsFloatingValues() && m_LevelWindow.GetRange() < 100)
+    // HRS_NAVIGATION_MODIFICATION ends
     {
       std::stringstream ssLevel;
       std::stringstream ssWindow;

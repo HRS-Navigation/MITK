@@ -153,6 +153,11 @@ std::vector<itk::SmartPointer<BaseData> > BaseDICOMReaderService::DoRead()
             const mitk::DICOMImageBlockDescriptor& desc = reader->GetOutput(i);
             mitk::BaseData::Pointer data = desc.GetMitkImage().GetPointer();
 
+            // HRS_NAVIGATION_MODIFICATION starts
+            if (data.IsNull())
+                continue ;
+            // HRS_NAVIGATION_MODIFICATION ends
+
             std::string nodeName = GenerateNameFromDICOMProperties(&desc);
 
             StringProperty::Pointer nameProp = StringProperty::New(nodeName);

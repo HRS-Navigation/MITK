@@ -244,7 +244,9 @@ std::vector<mitk::claronToolHandle> mitk::ClaronInterface::GetAllActiveTools()
 
 void mitk::ClaronInterface::GrabFrame()
 {
-  const int niMaxTimeForCameraErrorInMs = 15000;// if wait is more than 15 sec then mark as camera disconnected...
+  // Modified by AmitRungta on 21-06-2023 as we want to get the error signal for frame capture error quickly.
+  //const int niMaxTimeForCameraErrorInMs = 15000;// if wait is more than 15 sec then mark as camera disconnected...
+  const int niMaxTimeForCameraErrorInMs = 500; // if wait is more than 500 millisec then mark as camera disconnected...
   std::chrono::high_resolution_clock::time_point tCurTime = std::chrono::high_resolution_clock::now();
 
   if (!fnGetProcessingInBackgroundThread())
@@ -905,8 +907,14 @@ void mitk::ClaronInterface::SetTrackerlessNavEnabledTracker(mtHandle trackerHand
     return;
 
   if (enable)
-    m_HandleForTrackerless.insert(trackerHandle);
+  {
+    if (m_HandleForTrackerless.find(trackerHandle) == m_HandleForTrackerless.end())
+      m_HandleForTrackerless.insert(trackerHandle);     // insert only is not already present.
+  }
   else
-    m_HandleForTrackerless.erase(trackerHandle);
+  {
+    if (m_HandleForTrackerless.find(trackerHandle) != m_HandleForTrackerless.end())
+      m_HandleForTrackerless.erase(trackerHandle);
+  }
 }
 // HRS_NAVIGATION_MODIFICATION ends

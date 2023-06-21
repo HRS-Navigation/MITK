@@ -45,6 +45,11 @@ found in the LICENSE file.
 // c++
 #include <cmath>
 
+// HRS_NAVIGATION_MODIFICATION starts
+#include <QApplication> //Jeevigyay
+// HRS_NAVIGATION_MODIFICATION ends
+
+
 unsigned int QmitkRenderWindowMenu::m_DefaultThickMode(1);
 
 QmitkRenderWindowMenu::QmitkRenderWindowMenu(QWidget* parent,
@@ -410,12 +415,17 @@ void QmitkRenderWindowMenu::CreateSettingsWidget()
 
 void QmitkRenderWindowMenu::ChangeFullScreenIcon()
 {
-  m_FullScreenButton->setIcon(m_FullScreenMode ? QPixmap(iconLeaveFullScreen_xpm) : QPixmap(iconFullScreen_xpm));
+  // HRS_NAVIGATION_MODIFICATION starts
+  m_FullScreenButton->setDisabled(true); // Jeevigyay
+  // HRS_NAVIGATION_MODIFICATION ends
+
+    m_FullScreenButton->setIcon(m_FullScreenMode ? QPixmap(iconLeaveFullScreen_xpm) : QPixmap(iconFullScreen_xpm));
 
     // HRS_NAVIGATION_MODIFICATION starts
   // Now lets add tooltip to these buttons.
   m_FullScreenButton->setToolTip(m_FullScreenMode ? "Make the view as split display" : "Make this view Full-Screen.");
-  // HRS_NAVIGATION_MODIFICATION ends
+    m_FullScreenButton->setEnabled(true); // Jeevigyay
+    // HRS_NAVIGATION_MODIFICATION ends
 }
 
 void QmitkRenderWindowMenu::AutoRotateNextStep()
@@ -630,18 +640,38 @@ void QmitkRenderWindowMenu::OnCrosshairMenuAboutToShow()
 
 void QmitkRenderWindowMenu::OnCrosshairVisibilityChanged(bool visible)
 {
+  // HRS_NAVIGATION_MODIFICATION starts
+  fnEnableWidget(false); // Jeevigyay
+  // HRS_NAVIGATION_MODIFICATION ends
+
   UpdateCrosshairVisibility(visible);
   emit CrosshairVisibilityChanged(m_CrosshairVisibility);
+
+  // HRS_NAVIGATION_MODIFICATION starts
+  fnEnableWidget(true); // Jeevigyay
+  // HRS_NAVIGATION_MODIFICATION ends
 }
 
 void QmitkRenderWindowMenu::OnCrosshairRotationModeSelected(QAction *action)
 {
+  // HRS_NAVIGATION_MODIFICATION starts
+  fnEnableWidget(false); // Jeevigyay
+  // HRS_NAVIGATION_MODIFICATION ends
+
   UpdateCrosshairRotationMode(action->data().toInt());
   emit CrosshairRotationModeChanged(m_CrosshairRotationMode);
+
+  // HRS_NAVIGATION_MODIFICATION starts
+  fnEnableWidget(true); // Jeevigyay
+  // HRS_NAVIGATION_MODIFICATION ends
 }
 
 void QmitkRenderWindowMenu::OnFullScreenButton(bool /*checked*/)
 {
+  // HRS_NAVIGATION_MODIFICATION starts
+  fnEnableWidget(false); // Jeevigyay
+  // HRS_NAVIGATION_MODIFICATION ends
+
   if (!m_FullScreenMode)
   {
     m_FullScreenMode = true;
@@ -658,6 +688,10 @@ void QmitkRenderWindowMenu::OnFullScreenButton(bool /*checked*/)
   MoveWidgetToCorrectPos();
   ChangeFullScreenIcon();
   ShowMenu();
+
+  // HRS_NAVIGATION_MODIFICATION starts
+  fnEnableWidget(true); // Jeevigyay
+  // HRS_NAVIGATION_MODIFICATION ends
 }
 
 void QmitkRenderWindowMenu::OnLayoutDesignButton(bool /*checked*/)
@@ -674,6 +708,10 @@ void QmitkRenderWindowMenu::OnLayoutDesignButton(bool /*checked*/)
 
 void QmitkRenderWindowMenu::OnSetLayout(LayoutDesign layoutDesign)
 {
+  // HRS_NAVIGATION_MODIFICATION starts
+  fnEnableWidget(false); // Jeevigyay
+  // HRS_NAVIGATION_MODIFICATION ends
+
   m_FullScreenMode = false;
   ChangeFullScreenIcon();
 
@@ -681,4 +719,17 @@ void QmitkRenderWindowMenu::OnSetLayout(LayoutDesign layoutDesign)
   emit LayoutDesignChanged(m_LayoutDesign);
 
   ShowMenu();
+
+  // HRS_NAVIGATION_MODIFICATION starts
+  fnEnableWidget(true); // Jeevigyay
+  // HRS_NAVIGATION_MODIFICATION ends
 }
+
+// HRS_NAVIGATION_MODIFICATION starts
+// Added by Jeevigyay on 04-05-2023
+void QmitkRenderWindowMenu::fnEnableWidget(bool baGetboolStatus)
+{
+  this->setEnabled(baGetboolStatus);
+  qApp->processEvents();
+}
+// HRS_NAVIGATION_MODIFICATION ends

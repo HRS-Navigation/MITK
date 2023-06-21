@@ -164,7 +164,7 @@ protected:
   QAction* m_AllVerticalLayoutAction;
   QAction* m_RemoveOneLayoutAction;
 
-  QLabel *m_TSLabel;
+  QLabel *m_TSLabel = NULL;
 
   QMenu *m_CrosshairMenu;
 
@@ -189,6 +189,9 @@ private:
   LayoutDesign m_LayoutDesign;
   LayoutDesign m_OldLayoutDesign;
 
+  // HRS_NAVIGATION_MODIFICATION starts
+  void fnEnableWidget(bool baGetboolStatus); // Added by Jeevigyay on 04-05-2023
+  // HRS_NAVIGATION_MODIFICATION ends
 };
 
 #endif // QMITKRENDERWINDOWMENU_H

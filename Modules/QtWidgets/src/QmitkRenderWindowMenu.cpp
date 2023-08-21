@@ -114,6 +114,9 @@ void QmitkRenderWindowMenu::UpdateLayoutDesignList(LayoutDesign layoutDesign)
   m_AllHorizontalLayoutAction->setEnabled(true);
   m_AllVerticalLayoutAction->setEnabled(true);
   m_RemoveOneLayoutAction->setEnabled(true);
+  m_AxialLeftSagittalRightLayoutAction->setEnabled(true);
+  m_AxialSagittalLeft3DRightLayoutAction->setEnabled(true);
+  m_Axial3DLeftSagittalRightLayoutAction->setEnabled(true);
 
   switch (m_LayoutDesign)
   {
@@ -176,6 +179,23 @@ void QmitkRenderWindowMenu::UpdateLayoutDesignList(LayoutDesign layoutDesign)
   {
     break;
   }
+  // HRS_NAVIGATION_MODIFICATION starts
+  case LayoutDesign::AXIAL_LEFT_SAGITTAL_RIGHT:
+  {
+    m_AxialLeftSagittalRightLayoutAction->setEnabled(false);
+    break;
+  }
+  case LayoutDesign::AXIAL_SAGITTAL_LEFT_3D_RIGHT:
+  {
+    m_AxialSagittalLeft3DRightLayoutAction->setEnabled(false);
+    break;
+  }
+  case LayoutDesign::AXIAL_3D_LEFT_SAGITTAL_RIGHT:
+  {
+    m_Axial3DLeftSagittalRightLayoutAction->setEnabled(false);
+    break;
+  }
+    // HRS_NAVIGATION_MODIFICATION ends
   }
 
   // HRS_NAVIGATION_MODIFICATION starts
@@ -239,6 +259,17 @@ void QmitkRenderWindowMenu::UpdateLayoutDesignList(LayoutDesign layoutDesign)
         if (!bOtherWidgetVisible)
           m_RemoveOneLayoutAction->setEnabled(false);
       }
+    }
+  }
+
+  // Added by AmitRungta on 21-08-2023  as in case if this is a custom settings then we should update it that its not a full screen view.
+  // Added this to mainly resolve the issue CRWM-I386 | Main Navigation Window| Make this View Full- Screen is changing view to All 2D Left, 3D view right
+  if (LayoutDesign::ONE_BIG != m_LayoutDesign && LayoutDesign::NONE != m_LayoutDesign)
+  {
+    if (m_FullScreenMode)
+    {
+      m_FullScreenMode = false;
+      ChangeFullScreenIcon();
     }
   }
   // HRS_NAVIGATION_MODIFICATION ends
@@ -362,7 +393,7 @@ void QmitkRenderWindowMenu::CreateSettingsWidget()
   m_All2DLeft3DRightLayoutAction = new QAction("All 2D left, 3D right", m_LayoutActionsMenu);
   m_All2DLeft3DRightLayoutAction->setDisabled(false);
 
-  m_OneBigLayoutAction = new QAction("This big", m_LayoutActionsMenu);
+  m_OneBigLayoutAction = new QAction("This Big View", m_LayoutActionsMenu);
   m_OneBigLayoutAction->setDisabled(false);
 
   m_Only2DHorizontalLayoutAction = new QAction("Only 2D horizontal", m_LayoutActionsMenu);
@@ -383,8 +414,21 @@ void QmitkRenderWindowMenu::CreateSettingsWidget()
   m_AllVerticalLayoutAction = new QAction("All vertical", m_LayoutActionsMenu);
   m_AllVerticalLayoutAction->setDisabled(false);
 
-  m_RemoveOneLayoutAction = new QAction("Remove this", m_LayoutActionsMenu);
+  m_RemoveOneLayoutAction = new QAction("Remove this View", m_LayoutActionsMenu);
   m_RemoveOneLayoutAction->setDisabled(false);
+
+  // HRS_NAVIGATION_MODIFICATION starts
+  // Added by AmitRungta on 21-08-2023 as we now having new modes also.
+  m_AxialLeftSagittalRightLayoutAction = new QAction("Axial n Sagittal", m_LayoutActionsMenu);
+  m_AxialLeftSagittalRightLayoutAction->setDisabled(false);
+
+  m_AxialSagittalLeft3DRightLayoutAction = new QAction("Axial n Sagittal left, 3D right", m_LayoutActionsMenu);
+  m_AxialSagittalLeft3DRightLayoutAction->setDisabled(false);
+
+  m_Axial3DLeftSagittalRightLayoutAction = new QAction("Axial n 3D left, Sagittal right", m_LayoutActionsMenu);
+  m_Axial3DLeftSagittalRightLayoutAction->setDisabled(false);
+  // HRS_NAVIGATION_MODIFICATION ends
+
 
   m_LayoutActionsMenu->addAction(m_DefaultLayoutAction);
   m_LayoutActionsMenu->addAction(m_All2DTop3DBottomLayoutAction);
@@ -394,8 +438,21 @@ void QmitkRenderWindowMenu::CreateSettingsWidget()
   m_LayoutActionsMenu->addAction(m_Only2DVerticalLayoutAction);
   m_LayoutActionsMenu->addAction(m_OneTop3DBottomLayoutAction);
   m_LayoutActionsMenu->addAction(m_OneLeft3DRightLayoutAction);
-  m_LayoutActionsMenu->addAction(m_AllHorizontalLayoutAction);
-  m_LayoutActionsMenu->addAction(m_AllVerticalLayoutAction);
+  // HRS_NAVIGATION_MODIFICATION starts
+  // Added by AmitRungta on 21-08-2023 as we now having new modes also.
+  m_LayoutActionsMenu->addAction(m_AxialLeftSagittalRightLayoutAction);
+  m_LayoutActionsMenu->addAction(m_AxialSagittalLeft3DRightLayoutAction);
+  m_LayoutActionsMenu->addAction(m_Axial3DLeftSagittalRightLayoutAction);
+  // HRS_NAVIGATION_MODIFICATION ends
+
+
+  // HRS_NAVIGATION_MODIFICATION starts
+  // Modified by AmitRungta on 21-08-2023 as we do not need to show these to the user as they are not very convinent.
+  // m_LayoutActionsMenu->addAction(m_AllHorizontalLayoutAction);
+  // m_LayoutActionsMenu->addAction(m_AllVerticalLayoutAction);
+  // HRS_NAVIGATION_MODIFICATION ends
+  
+  
   m_LayoutActionsMenu->addAction(m_RemoveOneLayoutAction);
 
   m_LayoutActionsMenu->setVisible(false);
@@ -411,6 +468,13 @@ void QmitkRenderWindowMenu::CreateSettingsWidget()
   connect(m_AllHorizontalLayoutAction, &QAction::triggered, [this]() { this->OnSetLayout(LayoutDesign::ALL_HORIZONTAL); });
   connect(m_AllVerticalLayoutAction, &QAction::triggered, [this]() { this->OnSetLayout(LayoutDesign::ALL_VERTICAL); });
   connect(m_RemoveOneLayoutAction, &QAction::triggered, [this]() { this->OnSetLayout(LayoutDesign::REMOVE_ONE); });
+
+  // HRS_NAVIGATION_MODIFICATION starts
+  // Added by AmitRungta on 21-08-2023 as we now having new modes also.
+  connect(m_AxialLeftSagittalRightLayoutAction, &QAction::triggered, [this]() { this->OnSetLayout(LayoutDesign::AXIAL_LEFT_SAGITTAL_RIGHT); });
+  connect(m_AxialSagittalLeft3DRightLayoutAction, &QAction::triggered, [this]() { this->OnSetLayout(LayoutDesign::AXIAL_SAGITTAL_LEFT_3D_RIGHT); });
+  connect(m_Axial3DLeftSagittalRightLayoutAction, &QAction::triggered, [this]() { this->OnSetLayout(LayoutDesign::AXIAL_3D_LEFT_SAGITTAL_RIGHT); });
+  // HRS_NAVIGATION_MODIFICATION ends
 }
 
 void QmitkRenderWindowMenu::ChangeFullScreenIcon()

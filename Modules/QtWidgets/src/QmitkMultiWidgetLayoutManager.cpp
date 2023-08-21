@@ -101,6 +101,24 @@ void QmitkMultiWidgetLayoutManager::SetLayoutDesign(LayoutDesign layoutDesign)
   {
     break;
   }
+
+  // HRS_NAVIGATION_MODIFICATION starts
+  case LayoutDesign::AXIAL_LEFT_SAGITTAL_RIGHT:
+  {
+    SetAxialLeftSagittalRightLayout();
+    break;
+  }
+  case LayoutDesign::AXIAL_SAGITTAL_LEFT_3D_RIGHT:
+  {
+    SetAxialSagittalLeft3DRightLayout();
+    break;
+  }
+  case LayoutDesign::AXIAL_3D_LEFT_SAGITTAL_RIGHT:
+  {
+    SetAxial3DLeftSagittalRightLayout();
+    break;
+  }
+    // HRS_NAVIGATION_MODIFICATION ends
   };
 }
 
@@ -557,3 +575,250 @@ void QmitkMultiWidgetLayoutManager::RemoveOneLayout()
     renderWindow->UpdateLayoutDesignList(LayoutDesign::NONE);
   }
 }
+
+
+
+
+// HRS_NAVIGATION_MODIFICATION starts
+
+//------------------------------------------------------------------------------------
+//
+void QmitkMultiWidgetLayoutManager::SetAxialLeftSagittalRightLayout()
+{
+  MITK_INFO << "Set Axial n Sagittal layout" << std::endl;
+
+  m_MultiWidget->ActivateMenuWidget(false);
+
+  delete m_MultiWidget->layout();
+
+  auto hBoxLayout = new QHBoxLayout(m_MultiWidget);
+  hBoxLayout->setContentsMargins(0, 0, 0, 0);
+  m_MultiWidget->setLayout(hBoxLayout);
+  hBoxLayout->setMargin(0);
+
+  auto mainSplit = new QSplitter(m_MultiWidget);
+  hBoxLayout->addWidget(mainSplit);
+
+  QmitkRenderWindowWidget *clpAxialRenderWindowWidget = nullptr;
+  QmitkRenderWindowWidget *clpSagittalRenderWindowWidget = nullptr;
+  auto all2DRenderWindowWidgets = m_MultiWidget->Get2DRenderWindowWidgets();
+  for (const auto &renderWindowWidget : all2DRenderWindowWidgets)
+  {
+    if (renderWindowWidget.second)
+    {
+      if (mitk::BaseRenderer::ViewDirection::AXIAL == renderWindowWidget.second.get()->GetRenderWindow()->GetLayoutIndex() )
+        clpAxialRenderWindowWidget = renderWindowWidget.second.get();
+
+      if (mitk::BaseRenderer::ViewDirection::SAGITTAL == renderWindowWidget.second.get()->GetRenderWindow()->GetLayoutIndex() )
+        clpSagittalRenderWindowWidget = renderWindowWidget.second.get();
+    }
+  }
+
+   QList<int> splitterSize;
+  if (clpAxialRenderWindowWidget)
+  {
+    mainSplit->addWidget(clpAxialRenderWindowWidget);
+    clpAxialRenderWindowWidget->show();
+    splitterSize.push_back(1000);
+  }
+  if (clpSagittalRenderWindowWidget)
+  {
+    mainSplit->addWidget(clpSagittalRenderWindowWidget);
+    clpSagittalRenderWindowWidget->show();
+    splitterSize.push_back(1000);
+  }
+
+  // set size for main splitter
+  mainSplit->setSizes(splitterSize);
+
+
+  m_MultiWidget->ActivateMenuWidget(true);
+
+  auto allRenderWindows = m_MultiWidget->GetRenderWindows();
+  for (auto &renderWindow : allRenderWindows)
+  {
+    renderWindow->UpdateLayoutDesignList(LayoutDesign::AXIAL_LEFT_SAGITTAL_RIGHT);
+  }
+}
+
+//------------------------------------------------------------------------------------
+//
+void QmitkMultiWidgetLayoutManager::SetAxialSagittalLeft3DRightLayout()
+{
+  MITK_INFO << "Set Axial Sagittal Left 3D Right layout" << std::endl;
+
+  m_MultiWidget->ActivateMenuWidget(false);
+
+  delete m_MultiWidget->layout();
+
+  auto hBoxLayout = new QHBoxLayout(m_MultiWidget);
+  hBoxLayout->setContentsMargins(0, 0, 0, 0);
+  m_MultiWidget->setLayout(hBoxLayout);
+  hBoxLayout->setMargin(0);
+
+  auto mainSplit = new QSplitter(m_MultiWidget);
+  hBoxLayout->addWidget(mainSplit);
+
+  QmitkRenderWindowWidget *clpAxialRenderWindowWidget = nullptr;
+  QmitkRenderWindowWidget *clpSagittalRenderWindowWidget = nullptr;
+  QmitkRenderWindowWidget *clp3DRenderWindowWidget = nullptr;
+  {
+    auto all2DRenderWindowWidgets = m_MultiWidget->Get2DRenderWindowWidgets();
+    for (const auto &renderWindowWidget : all2DRenderWindowWidgets)
+    {
+      if (renderWindowWidget.second)
+      {
+        if (mitk::BaseRenderer::ViewDirection::AXIAL ==
+            renderWindowWidget.second.get()->GetRenderWindow()->GetLayoutIndex())
+          clpAxialRenderWindowWidget = renderWindowWidget.second.get();
+
+        if (mitk::BaseRenderer::ViewDirection::SAGITTAL ==
+            renderWindowWidget.second.get()->GetRenderWindow()->GetLayoutIndex())
+          clpSagittalRenderWindowWidget = renderWindowWidget.second.get();
+      }
+    }
+
+    auto all3DRenderWindowWidgets = m_MultiWidget->Get3DRenderWindowWidgets();
+    for (const auto &renderWindowWidget : all3DRenderWindowWidgets)
+    {
+      if (renderWindowWidget.second)
+      {
+        clp3DRenderWindowWidget = renderWindowWidget.second.get();
+        break;
+      }
+    }
+  }
+
+  auto subSplit2D = new QSplitter(Qt::Vertical, mainSplit);
+  QList<int> splitterSize;
+  if (clpAxialRenderWindowWidget)
+  {
+    subSplit2D->addWidget(clpAxialRenderWindowWidget);
+    clpAxialRenderWindowWidget->show();
+    splitterSize.push_back(1000);
+  }
+  if (clpSagittalRenderWindowWidget)
+  {
+    subSplit2D->addWidget(clpSagittalRenderWindowWidget);
+    clpSagittalRenderWindowWidget->show();
+    splitterSize.push_back(1000);
+  }
+  subSplit2D->setSizes(splitterSize);
+
+  auto subSplit3D = new QSplitter(mainSplit);
+  splitterSize.clear();
+  if (clp3DRenderWindowWidget)
+  {
+    subSplit3D->addWidget(clp3DRenderWindowWidget);
+    clp3DRenderWindowWidget->show();
+    splitterSize.push_back(1000);
+  }
+  subSplit3D->setSizes(splitterSize);
+
+  // set size for main splitter
+  splitterSize.clear();
+  splitterSize.push_back(600);
+  splitterSize.push_back(1000);
+  mainSplit->setSizes(splitterSize);
+
+  m_MultiWidget->ActivateMenuWidget(true);
+
+  auto allRenderWindows = m_MultiWidget->GetRenderWindows();
+  for (auto &renderWindow : allRenderWindows)
+  {
+    renderWindow->UpdateLayoutDesignList(LayoutDesign::AXIAL_SAGITTAL_LEFT_3D_RIGHT);
+  }
+}
+
+//------------------------------------------------------------------------------------
+//
+void QmitkMultiWidgetLayoutManager::SetAxial3DLeftSagittalRightLayout()
+{
+  MITK_INFO << "Set Axial 3D Left Sagittal Right layout" << std::endl;
+
+  m_MultiWidget->ActivateMenuWidget(false);
+
+  delete m_MultiWidget->layout();
+
+  auto hBoxLayout = new QHBoxLayout(m_MultiWidget);
+  hBoxLayout->setContentsMargins(0, 0, 0, 0);
+  m_MultiWidget->setLayout(hBoxLayout);
+  hBoxLayout->setMargin(0);
+
+  auto mainSplit = new QSplitter(m_MultiWidget);
+  hBoxLayout->addWidget(mainSplit);
+
+  QmitkRenderWindowWidget *clpAxialRenderWindowWidget = nullptr;
+  QmitkRenderWindowWidget *clpSagittalRenderWindowWidget = nullptr;
+  QmitkRenderWindowWidget *clp3DRenderWindowWidget = nullptr;
+  {
+    auto all2DRenderWindowWidgets = m_MultiWidget->Get2DRenderWindowWidgets();
+    for (const auto &renderWindowWidget : all2DRenderWindowWidgets)
+    {
+      if (renderWindowWidget.second)
+      {
+        if (mitk::BaseRenderer::ViewDirection::AXIAL ==
+            renderWindowWidget.second.get()->GetRenderWindow()->GetLayoutIndex())
+          clpAxialRenderWindowWidget = renderWindowWidget.second.get();
+
+        if (mitk::BaseRenderer::ViewDirection::SAGITTAL ==
+            renderWindowWidget.second.get()->GetRenderWindow()->GetLayoutIndex())
+          clpSagittalRenderWindowWidget = renderWindowWidget.second.get();
+      }
+    }
+
+    auto all3DRenderWindowWidgets = m_MultiWidget->Get3DRenderWindowWidgets();
+    for (const auto &renderWindowWidget : all3DRenderWindowWidgets)
+    {
+      if (renderWindowWidget.second)
+      {
+        clp3DRenderWindowWidget = renderWindowWidget.second.get();
+        break;
+      }
+    }
+  }
+
+  auto subSplitLeft = new QSplitter(Qt::Vertical, mainSplit);
+  QList<int> splitterSize;
+  if (clpAxialRenderWindowWidget)
+  {
+    subSplitLeft->addWidget(clpAxialRenderWindowWidget);
+    clpAxialRenderWindowWidget->show();
+    splitterSize.push_back(1000);
+  }
+  if (clp3DRenderWindowWidget)
+  {
+    subSplitLeft->addWidget(clp3DRenderWindowWidget);
+    clp3DRenderWindowWidget->show();
+    splitterSize.push_back(1000);
+  }
+  subSplitLeft->setSizes(splitterSize);
+
+
+  auto subSplitRight = new QSplitter(mainSplit);
+  splitterSize.clear();
+
+  if (clpSagittalRenderWindowWidget)
+  {
+    subSplitRight->addWidget(clpSagittalRenderWindowWidget);
+    clpSagittalRenderWindowWidget->show();
+    splitterSize.push_back(1000);
+  }
+  subSplitRight->setSizes(splitterSize);
+
+
+  // set size for main splitter
+  splitterSize.clear();
+  splitterSize.push_back(600);
+  splitterSize.push_back(1000);
+  mainSplit->setSizes(splitterSize);
+
+  m_MultiWidget->ActivateMenuWidget(true);
+
+  auto allRenderWindows = m_MultiWidget->GetRenderWindows();
+  for (auto &renderWindow : allRenderWindows)
+  {
+    renderWindow->UpdateLayoutDesignList(LayoutDesign::AXIAL_3D_LEFT_SAGITTAL_RIGHT);
+  }
+}
+// HRS_NAVIGATION_MODIFICATION ends

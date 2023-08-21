@@ -51,6 +51,11 @@ public:
     ALL_HORIZONTAL,
     ALL_VERTICAL,
     REMOVE_ONE,
+    // HRS_NAVIGATION_MODIFICATION starts
+    AXIAL_LEFT_SAGITTAL_RIGHT,
+    AXIAL_SAGITTAL_LEFT_3D_RIGHT,
+    AXIAL_3D_LEFT_SAGITTAL_RIGHT,
+    // HRS_NAVIGATION_MODIFICATION ends
     NONE
   };
 
@@ -116,6 +121,12 @@ public:
   * @brief Hide the current render window.
   */
   void RemoveOneLayout();
+
+  // HRS_NAVIGATION_MODIFICATION starts
+  void SetAxialLeftSagittalRightLayout();
+  void SetAxialSagittalLeft3DRightLayout();
+  void SetAxial3DLeftSagittalRightLayout();
+  // HRS_NAVIGATION_MODIFICATION ends
 
 private:
 

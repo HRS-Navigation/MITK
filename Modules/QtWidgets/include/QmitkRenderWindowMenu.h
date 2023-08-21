@@ -164,6 +164,14 @@ protected:
   QAction* m_AllVerticalLayoutAction;
   QAction* m_RemoveOneLayoutAction;
 
+  // HRS_NAVIGATION_MODIFICATION starts
+  QAction *m_AxialLeftSagittalRightLayoutAction;
+  QAction *m_AxialSagittalLeft3DRightLayoutAction;
+  QAction *m_Axial3DLeftSagittalRightLayoutAction;
+  // HRS_NAVIGATION_MODIFICATION ends
+
+
+
   QLabel *m_TSLabel = NULL;
 
   QMenu *m_CrosshairMenu;

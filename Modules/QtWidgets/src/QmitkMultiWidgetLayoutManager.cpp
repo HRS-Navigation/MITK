@@ -596,6 +596,17 @@ void QmitkMultiWidgetLayoutManager::SetAxialLeftSagittalRightLayout()
   m_MultiWidget->setLayout(hBoxLayout);
   hBoxLayout->setMargin(0);
 
+  // Added by AmitRungta on 23-08-2023 lets first hide all the views...
+  {
+    auto allDRenderWindowWidgets = m_MultiWidget->GetRenderWindowWidgets();
+    for (const auto &renderWindowWidget : allDRenderWindowWidgets)
+    {
+      if (renderWindowWidget.second)
+        renderWindowWidget.second->hide();
+    }
+  }
+
+
   auto mainSplit = new QSplitter(m_MultiWidget);
   hBoxLayout->addWidget(mainSplit);
 
@@ -631,7 +642,7 @@ void QmitkMultiWidgetLayoutManager::SetAxialLeftSagittalRightLayout()
   // set size for main splitter
   mainSplit->setSizes(splitterSize);
 
-
+  
   m_MultiWidget->ActivateMenuWidget(true);
 
   auto allRenderWindows = m_MultiWidget->GetRenderWindows();
@@ -655,6 +666,16 @@ void QmitkMultiWidgetLayoutManager::SetAxialSagittalLeft3DRightLayout()
   hBoxLayout->setContentsMargins(0, 0, 0, 0);
   m_MultiWidget->setLayout(hBoxLayout);
   hBoxLayout->setMargin(0);
+
+  // Added by AmitRungta on 23-08-2023 lets first hide all the views...
+  {
+    auto allDRenderWindowWidgets = m_MultiWidget->GetRenderWindowWidgets();
+    for (const auto &renderWindowWidget : allDRenderWindowWidgets)
+    {
+      if (renderWindowWidget.second)
+        renderWindowWidget.second->hide();
+    }
+  }
 
   auto mainSplit = new QSplitter(m_MultiWidget);
   hBoxLayout->addWidget(mainSplit);
@@ -744,6 +765,16 @@ void QmitkMultiWidgetLayoutManager::SetAxial3DLeftSagittalRightLayout()
   hBoxLayout->setContentsMargins(0, 0, 0, 0);
   m_MultiWidget->setLayout(hBoxLayout);
   hBoxLayout->setMargin(0);
+
+  // Added by AmitRungta on 23-08-2023 lets first hide all the views...
+  {
+    auto allDRenderWindowWidgets = m_MultiWidget->GetRenderWindowWidgets();
+    for (const auto &renderWindowWidget : allDRenderWindowWidgets)
+    {
+      if (renderWindowWidget.second)
+        renderWindowWidget.second->hide();
+    }
+  }
 
   auto mainSplit = new QSplitter(m_MultiWidget);
   hBoxLayout->addWidget(mainSplit);

@@ -91,14 +91,26 @@ bool mitk::ClaronInterface::StartTracking()
     // Step 3: Wait for 20 frames
     for (int i = 0; i < 20; i++) // the first 20 frames are auto-adjustment frames, we ignore them
     {
-      Sleep(50); // Let it sleep for some time before getting new data.
+      // Modified by AmitRungta on 30-04-2024 as this was making the camera initialisation slow. Hence processed as per
+      // the older MITK Codebase.
+      // Sleep(50); // Let it sleep for some time before getting new data.
+      // if (fnGetProcessingInBackgroundThread())
+      //{
+      //  MTC(Markers_GetIdentifiedMarkersFromBackgroundThread(CurrCamera));
+      //}
+      // else
+      //{
+      //  GrabFrame();
+      //}
       if (fnGetProcessingInBackgroundThread())
       {
+        Sleep(50); // Let it sleep for some time before getting new data.
         MTC(Markers_GetIdentifiedMarkersFromBackgroundThread(CurrCamera));
       }
       else
       {
-        GrabFrame();
+        MTC(Cameras_GrabFrame(0));    // Grab a frame (all cameras together)
+        MTC(Markers_ProcessFrame(0)); // Proces the frame(s) to obtain measurements
       }
     }
 
